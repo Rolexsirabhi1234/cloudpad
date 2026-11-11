@@ -45,3 +45,6 @@ Per-control opacity in edit mode (Opacity button) and a global "Control opacity"
 
 ### 1.5.0 — Obsidian & Champagne theme
 New gold-on-obsidian look across the app and the Bridge window. No functional changes.
+
+### 1.5.1 — Emerald theme
+Emerald and brass on deep green-black, app and Bridge. No functional changes.

@@ -16,9 +16,9 @@ const B = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, VIEW: 8, MENU: 9
 const BTN_NAMES = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'View', 'Menu', 'L3 (stick click)', 'R3 (stick click)', 'D-pad up', 'D-pad down', 'D-pad left', 'D-pad right', 'Guide'];
 
 const COL = {
-  bg: '#09090B', panel: '#141416', panel2: '#1C1C20', edge: '#35332F', text: '#F3EFE6', dim: '#9C968A',
-  cyan: '#DDB258', mag: '#C47F5E', lime: '#B9C86A', amber: '#D98A3D', green: '#5DBB87', red: '#D8505A',
-  blue: '#7E9BBF', yellow: '#EBCB6B', purple: '#A58BC4', white: '#F5F2EA',
+  bg: '#080B0A', panel: '#121614', panel2: '#1B201D', edge: '#2F3834', text: '#EEF4F0', dim: '#93A09A',
+  cyan: '#34C48B', mag: '#B9A66B', lime: '#B9C86A', amber: '#D8A15A', green: '#5DBB87', red: '#D8505A',
+  blue: '#7E9BBF', yellow: '#D9C46A', purple: '#A58BC4', white: '#F2F6F3',
 };
 
 // Settings that come from the phone's Settings screen (sent by Java).

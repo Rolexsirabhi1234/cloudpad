@@ -64,7 +64,7 @@ function drawBtn(ctx, c) {
   // base
   dropShadow(ctx, x, y, R);
   const g = ctx.createRadialGradient(x - R * 0.3, y - R * 0.4, R * 0.1, x, y, R * 1.05);
-  g.addColorStop(0, '#2C2C32'); g.addColorStop(1, '#171513');
+  g.addColorStop(0, '#272D2A'); g.addColorStop(1, '#131614');
   ctx.fillStyle = g;
   ctx.beginPath(); ctx.arc(x, y, R, 0, TAU); ctx.fill();
   sheen(ctx, x, y, R, down ? 0.06 : 0.12);
@@ -108,13 +108,13 @@ function drawPill(ctx, c) {
   const w = c.W, h = c.H, x = c.cx - w / 2, y = c.cy - h / 2, down = isDown(c) || val(c) > 0.12;
   if (c.paddle) { // F1 paddle shifter
     const g = ctx.createLinearGradient(x, y, x + w, y);
-    g.addColorStop(0, '#282624'); g.addColorStop(0.5, down ? '#4A4740' : '#2C2C30'); g.addColorStop(1, '#1E1C1A');
+    g.addColorStop(0, '#242725'); g.addColorStop(0.5, down ? '#404B46' : '#272D2A'); g.addColorStop(1, '#1A1D1B');
     ctx.fillStyle = g; rr(ctx, x, y, w, h, w * 0.5); ctx.fill();
     ctx.lineWidth = 2; ctx.strokeStyle = down ? COL.cyan : COL.edge; rr(ctx, x, y, w, h, w * 0.5); ctx.stroke();
     text(ctx, c.lbl, c.cx, c.cy, w * 0.78, down ? COL.cyan : COL.text, 800);
     return;
   }
-  const pg = ctx.createLinearGradient(0, y, 0, y + h); pg.addColorStop(0, down ? mixc(COL.cyan, 0.5) : '#2B2B30'); pg.addColorStop(1, down ? mixc(COL.cyan, 0.3) : '#161618');
+  const pg = ctx.createLinearGradient(0, y, 0, y + h); pg.addColorStop(0, down ? mixc(COL.cyan, 0.5) : '#262C29'); pg.addColorStop(1, down ? mixc(COL.cyan, 0.3) : '#141816');
   ctx.fillStyle = pg; rr(ctx, x, y, w, h, Math.min(h * 0.5, 16)); ctx.fill();
   ctx.lineWidth = 2; ctx.strokeStyle = down ? COL.cyan : COL.edge; if (down) glow(ctx, COL.cyan, 14); rr(ctx, x, y, w, h, Math.min(h * 0.5, 16)); ctx.stroke(); noGlow(ctx);
   text(ctx, c.lbl, c.cx, c.cy + 1, h * 0.46, down ? '#fff' : COL.dim, 800);
@@ -132,7 +132,7 @@ function drawStick(ctx, c) {
   ctx.beginPath(); ctx.arc(ox, oy, R * 0.62, 0, TAU); ctx.stroke();
   const kx = ox + (c.sx || 0) * R, ky = oy + (c.sy || 0) * R, kr = R * 0.46;
   const g = ctx.createRadialGradient(kx - kr * 0.3, ky - kr * 0.35, kr * 0.1, kx, ky, kr);
-  g.addColorStop(0, act ? '#4A4A52' : '#2A2A2E'); g.addColorStop(1, act ? '#242220' : '#161618');
+  g.addColorStop(0, act ? '#43504A' : '#242A27'); g.addColorStop(1, act ? '#202321' : '#141816');
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(kx, ky, kr, 0, TAU); ctx.fill();
   ctx.lineWidth = Math.max(2, R * 0.06); ctx.strokeStyle = act ? COL.cyan : COL.dim;
   ctx.beginPath(); ctx.arc(kx, ky, kr, 0, TAU); ctx.stroke();
@@ -144,11 +144,11 @@ function drawDpad(ctx, c) {
   const arm = R * 0.62, len = R;
   const dirs = [[0, -1, B.UP], [0, 1, B.DOWN], [-1, 0, B.LEFT], [1, 0, B.RIGHT]];
   dropShadow(ctx, x, y, R * 0.85);
-  const dg = ctx.createLinearGradient(0, y - len, 0, y + len); dg.addColorStop(0, '#2C2C32'); dg.addColorStop(1, '#161618');
+  const dg = ctx.createLinearGradient(0, y - len, 0, y + len); dg.addColorStop(0, '#272D2A'); dg.addColorStop(1, '#141816');
   ctx.fillStyle = dg; ctx.strokeStyle = COL.edge; ctx.lineWidth = 2;
   rr(ctx, x - len, y - arm / 2, len * 2, arm, arm * 0.28); ctx.fill(); ctx.stroke();
   rr(ctx, x - arm / 2, y - len, arm, len * 2, arm * 0.28); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#292725'; ctx.fillRect(x - arm / 2 + 1, y - arm / 2 + 1, arm - 2, arm - 2);
+  ctx.fillStyle = '#252826'; ctx.fillRect(x - arm / 2 + 1, y - arm / 2 + 1, arm - 2, arm - 2);
   for (const d of dirs) {
     const on = (m & (1 << d[2])) !== 0;
     const ax = x + d[0] * len * 0.68, ay = y + d[1] * len * 0.68, s = arm * 0.2;
@@ -188,7 +188,7 @@ function drawLook(ctx, c) {
 
 function drawTouchpad(ctx, c) {
   const w = c.W, h = c.H, x = c.cx - w / 2, y = c.cy - h / 2;
-  const g = ctx.createLinearGradient(x, y, x, y + h); g.addColorStop(0, '#262422'); g.addColorStop(1, '#171513');
+  const g = ctx.createLinearGradient(x, y, x, y + h); g.addColorStop(0, '#222523'); g.addColorStop(1, '#131614');
   ctx.fillStyle = g; rr(ctx, x, y, w, h, h * 0.28); ctx.fill();
   ctx.lineWidth = 2; ctx.strokeStyle = COL.edge; rr(ctx, x, y, w, h, h * 0.28); ctx.stroke();
   ctx.fillStyle = alpha(COL.cyan, 0.5); ctx.beginPath(); ctx.arc(c.cx, y + h * 0.15, 3, 0, TAU); ctx.fill();
@@ -200,7 +200,7 @@ function drawRotary(ctx, c) {
   ctx.lineWidth = Math.max(2, R * 0.1); ctx.strokeStyle = c.col; ctx.beginPath(); ctx.arc(x, y, R - ctx.lineWidth / 2, 0, TAU); ctx.stroke();
   ctx.save(); ctx.translate(x, y); ctx.rotate(a);
   const g = ctx.createRadialGradient(-R * 0.2, -R * 0.25, R * 0.05, 0, 0, R * 0.8);
-  g.addColorStop(0, '#555048'); g.addColorStop(1, '#1F1D1B');
+  g.addColorStop(0, '#4B5A53'); g.addColorStop(1, '#1B1E1C');
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, R * 0.74, 0, TAU); ctx.fill();
   ctx.strokeStyle = alpha('#ffffff', 0.18); ctx.lineWidth = 1.5;
   for (let i = 0; i < 24; i++) { const t = (i / 24) * TAU; ctx.beginPath(); ctx.moveTo(Math.cos(t) * R * 0.66, Math.sin(t) * R * 0.66); ctx.lineTo(Math.cos(t) * R * 0.74, Math.sin(t) * R * 0.74); ctx.stroke(); }
@@ -250,7 +250,7 @@ function drawLights(ctx, c) {
 
 function drawGraph(ctx, c) {
   const w = c.W, h = c.H, x = c.cx - w / 2, y = c.cy - h / 2;
-  ctx.fillStyle = alpha('#060607', 0.82); rr(ctx, x, y, w, h, 10); ctx.fill();
+  ctx.fillStyle = alpha('#050706', 0.82); rr(ctx, x, y, w, h, 10); ctx.fill();
   ctx.lineWidth = 1.5; ctx.strokeStyle = COL.edge; rr(ctx, x, y, w, h, 10); ctx.stroke();
   const px = 8, py = 14, gw = w - px * 2, gh = h - py - 8;
   ctx.strokeStyle = alpha('#ffffff', 0.07); ctx.lineWidth = 1;
@@ -265,11 +265,11 @@ function drawGraph(ctx, c) {
     }
     ctx.stroke();
   };
-  trace(2, COL.red, (v) => v); trace(1, COL.green, (v) => v); trace(3, COL.cyan, (v) => (v + 1) / 2);
+  trace(2, COL.red, (v) => v); trace(1, COL.green, (v) => v); trace(3, COL.blue, (v) => (v + 1) / 2);
   const ls = Math.min(h * 0.12, 11);
   text(ctx, 'THR', x + px + 4, y + 7, ls, COL.green, 800, 'left');
   text(ctx, 'BRK', x + px + 4 + ls * 3.2, y + 7, ls, COL.red, 800, 'left');
-  text(ctx, 'STEER', x + px + 4 + ls * 6.4, y + 7, ls, COL.cyan, 800, 'left');
+  text(ctx, 'STEER', x + px + 4 + ls * 6.4, y + 7, ls, COL.blue, 800, 'left');
   text(ctx, live.isLive() ? 'LIVE' : 'INPUTS · 8 s', x + w - px, y + 7, ls, live.isLive() ? COL.lime : COL.dim, 800, 'right');
 }
 
@@ -284,13 +284,13 @@ function drawWheel(ctx, c) {
     ctx.rotate(ang);
     ctx.fillStyle = alpha('#000', 0.25); ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.fill();
     // rim
-    const rg = ctx.createLinearGradient(-R, -R, R, R); rg.addColorStop(0, '#403E3A'); rg.addColorStop(0.5, '#23211F'); rg.addColorStop(1, '#3A3834');
+    const rg = ctx.createLinearGradient(-R, -R, R, R); rg.addColorStop(0, '#37403C'); rg.addColorStop(0.5, '#1F2220'); rg.addColorStop(1, '#333C38');
     ctx.lineWidth = R * 0.17; ctx.strokeStyle = rg; ctx.beginPath(); ctx.arc(0, 0, R * 0.9, 0, TAU); ctx.stroke();
     ctx.lineWidth = 1.5; ctx.strokeStyle = touching ? COL.cyan : alpha('#ffffff', 0.15); ctx.beginPath(); ctx.arc(0, 0, R * 0.99, 0, TAU); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, R * 0.81, 0, TAU); ctx.stroke();
     // spokes
-    ctx.lineCap = 'round'; ctx.strokeStyle = '#312F2D'; ctx.lineWidth = R * 0.15;
+    ctx.lineCap = 'round'; ctx.strokeStyle = '#2D302E'; ctx.lineWidth = R * 0.15;
     ctx.beginPath(); ctx.moveTo(-R * 0.8, 0); ctx.lineTo(R * 0.8, 0); ctx.moveTo(0, 0); ctx.lineTo(0, R * 0.8); ctx.stroke(); ctx.lineCap = 'butt';
-    ctx.fillStyle = '#242220'; ctx.beginPath(); ctx.arc(0, 0, R * 0.28, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#202321'; ctx.beginPath(); ctx.arc(0, 0, R * 0.28, 0, TAU); ctx.fill();
     ctx.lineWidth = 2; ctx.strokeStyle = COL.cyan; ctx.beginPath(); ctx.arc(0, 0, R * 0.28, 0, TAU); ctx.stroke();
     text(ctx, 'CP', 0, 0, R * 0.2, COL.cyan, 800);
     // 12 o'clock marker
@@ -311,7 +311,7 @@ function drawF1Wheel(ctx, R, touching) {
   // carbon weave
   if (!G.carbon) {
     const p = document.createElement('canvas'); p.width = p.height = 8; const q = p.getContext('2d');
-    q.fillStyle = '#0E0E10'; q.fillRect(0, 0, 8, 8); q.fillStyle = '#17171A'; q.fillRect(0, 0, 4, 4); q.fillRect(4, 4, 4, 4);
+    q.fillStyle = '#0D100F'; q.fillRect(0, 0, 8, 8); q.fillStyle = '#161A18'; q.fillRect(0, 0, 4, 4); q.fillRect(4, 4, 4, 4);
     G.carbon = ctx.createPattern(p, 'repeat');
   }
   // modern F1 wheel outline: flat top, swept shoulders, long angled grips, hub notch underneath
@@ -340,26 +340,26 @@ function drawF1Wheel(ctx, R, touching) {
   body(); ctx.fillStyle = G.carbon; ctx.fill();
   ctx.save(); body(); ctx.clip();
   let lg = ctx.createLinearGradient(0, -R * 0.56, 0, R * 0.7);
-  lg.addColorStop(0, 'rgba(200,185,150,.26)'); lg.addColorStop(0.35, 'rgba(90,80,60,.08)'); lg.addColorStop(1, 'rgba(0,0,0,.45)');
+  lg.addColorStop(0, 'rgba(170,205,190,.26)'); lg.addColorStop(0.35, 'rgba(60,90,75,.08)'); lg.addColorStop(1, 'rgba(0,0,0,.45)');
   ctx.fillStyle = lg; ctx.fillRect(-R * 1.2, -R * 0.6, R * 2.4, R * 1.4);
   // diagonal gloss streak
   lg = ctx.createLinearGradient(-R * 0.9, -R * 0.5, R * 0.1, R * 0.6);
   lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(0.45, 'rgba(255,255,255,.07)'); lg.addColorStop(0.6, 'rgba(255,255,255,0)');
   ctx.fillStyle = lg; ctx.fillRect(-R * 1.2, -R * 0.6, R * 2.4, R * 1.4);
   // colour band along the top edge
-  lg = ctx.createLinearGradient(-R * 0.9, 0, R * 0.9, 0); lg.addColorStop(0, COL.mag); lg.addColorStop(0.5, '#C99A4A'); lg.addColorStop(1, COL.cyan);
+  lg = ctx.createLinearGradient(-R * 0.9, 0, R * 0.9, 0); lg.addColorStop(0, COL.mag); lg.addColorStop(0.5, '#2AA877'); lg.addColorStop(1, COL.cyan);
   ctx.fillStyle = lg; ctx.globalAlpha = 0.9; ctx.fillRect(-R * 1.2, -R * 0.56, R * 2.4, R * 0.035); ctx.globalAlpha = 1;
   ctx.restore();
   // bevelled edge
   body(); ctx.lineWidth = R * 0.04;
   lg = ctx.createLinearGradient(-R, -R * 0.5, R, R * 0.7);
-  lg.addColorStop(0, touching ? COL.cyan : '#A39A86'); lg.addColorStop(0.5, touching ? COL.cyan : '#3A372F'); lg.addColorStop(1, touching ? COL.cyan : '#6A655A');
+  lg.addColorStop(0, touching ? COL.cyan : '#9DB0A7'); lg.addColorStop(0.5, touching ? COL.cyan : '#34403B'); lg.addColorStop(1, touching ? COL.cyan : '#5E6F67');
   ctx.strokeStyle = lg; if (touching) glow(ctx, COL.cyan, R * 0.12); ctx.stroke(); noGlow(ctx);
   body(0.965); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.stroke();
   // rubber grips with stitching + thumb glow
   for (const sd of [-1, 1]) {
     ctx.save(); ctx.scale(sd, 1);
-    const gg = ctx.createLinearGradient(R * 0.74, 0, R * 1.02, 0); gg.addColorStop(0, '#0C0C0E'); gg.addColorStop(0.6, '#1D1B19'); gg.addColorStop(1, '#0C0C0E');
+    const gg = ctx.createLinearGradient(R * 0.74, 0, R * 1.02, 0); gg.addColorStop(0, '#0B0D0C'); gg.addColorStop(0.6, '#191C1A'); gg.addColorStop(1, '#0B0D0C');
     ctx.beginPath(); ctx.moveTo(R * 0.80, -R * 0.14); ctx.bezierCurveTo(R * 0.90, -R * 0.02, R * 0.98, R * 0.26, R * 1.00, R * 0.44);
     ctx.bezierCurveTo(R * 1.01, R * 0.58, R * 0.95, R * 0.62, R * 0.86, R * 0.60); ctx.bezierCurveTo(R * 0.80, R * 0.40, R * 0.76, R * 0.16, R * 0.80, -R * 0.14); ctx.closePath();
     ctx.fillStyle = gg; ctx.fill();
@@ -374,18 +374,18 @@ function drawF1Wheel(ctx, R, touching) {
   ctx.strokeStyle = COL.cyan; glow(ctx, COL.cyan, R * 0.08); ctx.beginPath(); ctx.moveTo(R * 0.54, -R * 0.40); ctx.lineTo(R * 0.76, -R * 0.40); ctx.stroke();
   noGlow(ctx); ctx.lineCap = 'butt';
   // badge plate under the screen
-  const bpl = ctx.createLinearGradient(0, R * 0.43, 0, R * 0.52); bpl.addColorStop(0, '#33302A'); bpl.addColorStop(1, '#141416');
+  const bpl = ctx.createLinearGradient(0, R * 0.43, 0, R * 0.52); bpl.addColorStop(0, '#2A332F'); bpl.addColorStop(1, '#121614');
   ctx.fillStyle = bpl; rr(ctx, -R * 0.19, R * 0.43, R * 0.38, R * 0.085, R * 0.03); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 1; rr(ctx, -R * 0.19, R * 0.43, R * 0.38, R * 0.085, R * 0.03); ctx.stroke();
   text(ctx, 'CLOUDPAD', 0, R * 0.474, R * 0.056, COL.cyan, 800);
   // LCD with metal bezel
   const sx = -R * 0.5, sy = -R * 0.42, sw = R * 1.0, sh = R * 0.78;
-  const bz = ctx.createLinearGradient(0, sy, 0, sy + sh); bz.addColorStop(0, '#8A8272'); bz.addColorStop(0.5, '#282624'); bz.addColorStop(1, '#4A463E');
+  const bz = ctx.createLinearGradient(0, sy, 0, sy + sh); bz.addColorStop(0, '#7F9189'); bz.addColorStop(0.5, '#242725'); bz.addColorStop(1, '#434F49');
   ctx.fillStyle = bz; rr(ctx, sx - R * 0.025, sy - R * 0.025, sw + R * 0.05, sh + R * 0.05, R * 0.08); ctx.fill();
-  const sg = ctx.createLinearGradient(0, sy, 0, sy + sh); sg.addColorStop(0, '#181614'); sg.addColorStop(1, '#090705');
+  const sg = ctx.createLinearGradient(0, sy, 0, sy + sh); sg.addColorStop(0, '#141715'); sg.addColorStop(1, '#050806');
   ctx.fillStyle = sg; rr(ctx, sx, sy, sw, sh, R * 0.06); ctx.fill();
   ctx.save(); rr(ctx, sx, sy, sw, sh, R * 0.06); ctx.clip();
-  ctx.fillStyle = 'rgba(221,178,88,.03)'; for (let yy = sy; yy < sy + sh; yy += 4) ctx.fillRect(sx, yy, sw, 1);
+  ctx.fillStyle = 'rgba(52,196,139,.03)'; for (let yy = sy; yy < sy + sh; yy += 4) ctx.fillRect(sx, yy, sw, 1);
   lg = ctx.createLinearGradient(sx, sy, sx + sw * 0.7, sy + sh); lg.addColorStop(0, 'rgba(255,255,255,.10)'); lg.addColorStop(0.35, 'rgba(255,255,255,0)');
   ctx.fillStyle = lg; ctx.fillRect(sx, sy, sw, sh); ctx.restore();
   ctx.lineWidth = 1.5; ctx.strokeStyle = alpha(COL.cyan, 0.6); rr(ctx, sx, sy, sw, sh, R * 0.06); ctx.stroke();
@@ -401,7 +401,7 @@ function drawF1Wheel(ctx, R, touching) {
   ind('DRS', G.drsOn, COL.cyan, 0.76);
   // rev bar
   const bw = sw * 0.9, bx = sx + sw * 0.05, by = sy + sh * 0.76;
-  ctx.fillStyle = alpha('#fff', 0.08); rr(ctx, bx, by, bw, sh * 0.1, sh * 0.05); ctx.fill();
+  ctx.fillStyle = alpha('#ffffff', 0.08); rr(ctx, bx, by, bw, sh * 0.1, sh * 0.05); ctx.fill();
   const rg = ctx.createLinearGradient(bx, 0, bx + bw, 0); rg.addColorStop(0, COL.green); rg.addColorStop(0.65, COL.red); rg.addColorStop(1, COL.blue);
   ctx.fillStyle = rg; rr(ctx, bx, by, Math.max(2, bw * clamp((live.rpm - 4000) / 8800, 0, 1)), sh * 0.1, sh * 0.05); ctx.fill();
   text(ctx, Math.round(live.rpm / 100) * 100 + ' RPM', 0, sy + sh * 0.955, R * 0.07, COL.dim, 700);
@@ -420,13 +420,13 @@ function backdrop(ctx, W, H, DPR) {
     _bgKey = key;
     const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(W * DPR)); c.height = Math.max(1, Math.round(H * DPR));
     const g = c.getContext('2d'); g.scale(DPR, DPR);
-    const lg = g.createLinearGradient(0, 0, 0, H); lg.addColorStop(0, '#13110F'); lg.addColorStop(1, '#060607');
+    const lg = g.createLinearGradient(0, 0, 0, H); lg.addColorStop(0, '#0F1210'); lg.addColorStop(1, '#050706');
     g.fillStyle = lg; g.fillRect(0, 0, W, H);
     let rg = g.createRadialGradient(W * 0.12, 0, 0, W * 0.12, 0, Math.max(W, H) * 0.7);
-    rg.addColorStop(0, 'rgba(221,178,88,.10)'); rg.addColorStop(1, 'rgba(221,178,88,0)'); g.fillStyle = rg; g.fillRect(0, 0, W, H);
+    rg.addColorStop(0, 'rgba(52,196,139,.10)'); rg.addColorStop(1, 'rgba(52,196,139,0)'); g.fillStyle = rg; g.fillRect(0, 0, W, H);
     rg = g.createRadialGradient(W * 0.95, H, 0, W * 0.95, H, Math.max(W, H) * 0.7);
-    rg.addColorStop(0, 'rgba(196,127,94,.09)'); rg.addColorStop(1, 'rgba(196,127,94,0)'); g.fillStyle = rg; g.fillRect(0, 0, W, H);
-    g.fillStyle = 'rgba(230,210,170,.06)';
+    rg.addColorStop(0, 'rgba(185,166,107,.09)'); rg.addColorStop(1, 'rgba(185,166,107,0)'); g.fillStyle = rg; g.fillRect(0, 0, W, H);
+    g.fillStyle = 'rgba(190,230,210,.06)';
     const step = 26;
     for (let y = step; y < H; y += step) for (let x = step; x < W; x += step) g.fillRect(x - 0.75, y - 0.75, 1.5, 1.5);
     rg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.45, W / 2, H / 2, Math.max(W, H) * 0.8);
