@@ -48,3 +48,6 @@ New gold-on-obsidian look across the app and the Bridge window. No functional ch
 
 ### 1.5.1 — Emerald theme
 Emerald and brass on deep green-black, app and Bridge. No functional changes.
+
+### 1.5.2
+Home-screen layout cards are multicolour again; rest of the app stays emerald.
