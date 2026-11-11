@@ -635,9 +635,9 @@ def run_gui():
     from tkinter import messagebox
 
     # rich black with neon: every player owns one neon colour
-    BG, SURFACE, RAISED, LINE = "#080B0A", "#121614", "#1B201D", "#2F3834"
-    TEXT, MUTED, ACCENT, GOOD, BAD = "#EEF4F0", "#93A09A", "#34C48B", "#5DBB87", "#D8505A"
-    COLORS = ["#34C48B", "#B9A66B", "#8FAAC8", "#D8A15A"]      # Player 1-4: emerald, brass, steel, amber
+    BG, SURFACE, RAISED, LINE = "#0B0708", "#151011", "#201819", "#3A2B2D"
+    TEXT, MUTED, ACCENT, GOOD, BAD = "#F6EFEF", "#A8979A", "#E03A4B", "#5DBB87", "#D8505A"
+    COLORS = ["#E03A4B", "#B9A66B", "#8FAAC8", "#D8A15A"]      # Player 1-4: crimson, brass, steel, amber
     TITLE = ("Bahnschrift SemiBold", 19)
     NUM = ("Bahnschrift SemiBold", 20)
     HEAD = ("Segoe UI Semibold", 11)
@@ -676,7 +676,7 @@ def run_gui():
     pill.pack(side="right", anchor="n", pady=4)
 
     # setup banner (only when something is missing)
-    banner = tk.Frame(root, bg="#14201A", highlightthickness=1, highlightbackground=COLORS[1])
+    banner = tk.Frame(root, bg="#241315", highlightthickness=1, highlightbackground=COLORS[1])
     banner_text = label(banner, "", BODY, TEXT, wraplength=560, justify="left")
     banner_text.pack(side="left", padx=14, pady=10)
 

@@ -51,3 +51,6 @@ Emerald and brass on deep green-black, app and Bridge. No functional changes.
 
 ### 1.5.2
 Home-screen layout cards are multicolour again; rest of the app stays emerald.
+
+### 1.5.3 — Crimson theme
+Crimson on black-red, app and Bridge; home cards stay multicolour.
