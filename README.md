@@ -42,3 +42,6 @@ New backdrop, glossy controls with press glow, coloured layout cards and smoothe
 
 ### 1.4.3 — opacity + new F1 wheel
 Per-control opacity in edit mode (Opacity button) and a global "Control opacity" in the gear menu. Redrawn F1 steering wheel (metal-bezel screen, carbon body, stitched grips). Graph unchanged.
+
+### 1.5.0 — Obsidian & Champagne theme
+New gold-on-obsidian look across the app and the Bridge window. No functional changes.

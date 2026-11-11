@@ -55,10 +55,10 @@ function buildLayout(preset, area) {
     L.push(stick('ls', 0.34, 0.80, 0.17, 'l'));
     L.push(stick('rs', 0.63, 0.80, 0.17, 'r'));
     const fx = 0.85, fy = 0.64, d = 0.20;
-    L.push(btn('cross', fx, fy + dy(d), 0.12, '', '#5DA9FF', B.A, { glyph: 'cross', name: 'Cross' }));
-    L.push(btn('circle', fx + dx(d), fy, 0.12, '', '#FF5C6C', B.B, { glyph: 'circle', name: 'Circle' }));
-    L.push(btn('square', fx - dx(d), fy, 0.12, '', '#FF8AD8', B.X, { glyph: 'square', name: 'Square' }));
-    L.push(btn('tri', fx, fy - dy(d), 0.12, '', '#35E0B0', B.Y, { glyph: 'triangle', name: 'Triangle' }));
+    L.push(btn('cross', fx, fy + dy(d), 0.12, '', '#8FAAC8', B.A, { glyph: 'cross', name: 'Cross' }));
+    L.push(btn('circle', fx + dx(d), fy, 0.12, '', '#E0636E', B.B, { glyph: 'circle', name: 'Circle' }));
+    L.push(btn('square', fx - dx(d), fy, 0.12, '', '#E3B49C', B.X, { glyph: 'square', name: 'Square' }));
+    L.push(btn('tri', fx, fy - dy(d), 0.12, '', '#5FBF9A', B.Y, { glyph: 'triangle', name: 'Triangle' }));
     L.push(btn('create', 0.30, 0.40, 0.06, 'Create', COL.dim, B.VIEW, { style: 'tiny' }));
     L.push(btn('options', 0.70, 0.40, 0.06, 'Options', COL.dim, B.MENU, { style: 'tiny' }));
     L.push(btn('ps', 0.5, 0.56, 0.08, 'PS', COL.cyan, B.GUIDE, { style: 'ps' }));
