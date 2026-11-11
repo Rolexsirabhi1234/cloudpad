@@ -36,3 +36,6 @@ Source for the new UI is in `app-1.4/` (web UI in `web/pad`, Java view in `java`
 
 ### 1.4.1 — live F1 2020 telemetry
 In F1 2020: Settings > Telemetry Settings > UDP Telemetry **On**, IP `127.0.0.1`, port `20777`, rate 20 Hz. The Bridge decodes the player's speed/RPM/gear/DRS and sends it to the phone; the gauges switch from EST to LIVE. Needs both the new APK and the new Bridge.
+
+### 1.4.2 — visual polish
+New backdrop, glossy controls with press glow, coloured layout cards and smoother menus. No functional changes.

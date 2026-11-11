@@ -43,6 +43,7 @@ function drawBtn(ctx, c) {
   const st = c.style;
 
   if (st === 'key') { // F1 coloured push key
+    dropShadow(ctx, x, y, R);
     const g = ctx.createRadialGradient(x - R * 0.3, y - R * 0.35, R * 0.1, x, y, R);
     g.addColorStop(0, down ? mixc(col, 0.95) : mixc(col, 0.55));
     g.addColorStop(1, down ? mixc(col, 0.7) : mixc(col, 0.22));
@@ -50,7 +51,10 @@ function drawBtn(ctx, c) {
     ctx.beginPath(); ctx.arc(x, y, R, 0, TAU); ctx.fill();
     ctx.lineWidth = Math.max(2, R * 0.12);
     ctx.strokeStyle = down ? '#fff' : col;
+    if (down) glow(ctx, col, R * 0.7);
     ctx.beginPath(); ctx.arc(x, y, R * 0.93, 0, TAU); ctx.stroke();
+    noGlow(ctx);
+    sheen(ctx, x, y, R * 0.93, down ? 0.1 : 0.22);
     ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,255,255,.18)';
     ctx.beginPath(); ctx.arc(x, y, R * 0.7, 0, TAU); ctx.stroke();
     text(ctx, c.lbl, x, y + R * 0.02, R * (c.lbl.length > 4 ? 0.36 : 0.44), down ? '#000' : '#fff', 800);
@@ -58,14 +62,18 @@ function drawBtn(ctx, c) {
   }
 
   // base
+  dropShadow(ctx, x, y, R);
   const g = ctx.createRadialGradient(x - R * 0.3, y - R * 0.4, R * 0.1, x, y, R * 1.05);
-  g.addColorStop(0, COL.panel2); g.addColorStop(1, COL.panel);
+  g.addColorStop(0, '#2A3047'); g.addColorStop(1, '#10131D');
   ctx.fillStyle = g;
   ctx.beginPath(); ctx.arc(x, y, R, 0, TAU); ctx.fill();
+  sheen(ctx, x, y, R, down ? 0.06 : 0.12);
   if (down) { ctx.fillStyle = alpha(col.charAt(0) === '#' ? col : COL.cyan, 0.38); ctx.beginPath(); ctx.arc(x, y, R, 0, TAU); ctx.fill(); }
   ctx.lineWidth = Math.max(2, R * 0.09);
   ctx.strokeStyle = down ? '#fff' : (st === 'small' || st === 'tiny' ? COL.edge : col);
+  if (down) glow(ctx, col.charAt(0) === '#' ? col : COL.cyan, R * 0.5);
   ctx.beginPath(); ctx.arc(x, y, R - ctx.lineWidth / 2, 0, TAU); ctx.stroke();
+  noGlow(ctx);
 
   if (c.glyph) { drawGlyph(ctx, c.glyph, x, y, R * 0.46, down ? '#fff' : col); return; }
   if (st === 'view') { // two overlapping squares
@@ -106,8 +114,9 @@ function drawPill(ctx, c) {
     text(ctx, c.lbl, c.cx, c.cy, w * 0.78, down ? COL.cyan : COL.text, 800);
     return;
   }
-  ctx.fillStyle = down ? mixc(COL.cyan, 0.42) : COL.panel2; rr(ctx, x, y, w, h, Math.min(h * 0.5, 16)); ctx.fill();
-  ctx.lineWidth = 2; ctx.strokeStyle = down ? COL.cyan : COL.edge; rr(ctx, x, y, w, h, Math.min(h * 0.5, 16)); ctx.stroke();
+  const pg = ctx.createLinearGradient(0, y, 0, y + h); pg.addColorStop(0, down ? mixc(COL.cyan, 0.5) : '#262C42'); pg.addColorStop(1, down ? mixc(COL.cyan, 0.3) : '#141826');
+  ctx.fillStyle = pg; rr(ctx, x, y, w, h, Math.min(h * 0.5, 16)); ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = down ? COL.cyan : COL.edge; if (down) glow(ctx, COL.cyan, 14); rr(ctx, x, y, w, h, Math.min(h * 0.5, 16)); ctx.stroke(); noGlow(ctx);
   text(ctx, c.lbl, c.cx, c.cy + 1, h * 0.46, down ? '#fff' : COL.dim, 800);
 }
 
@@ -117,7 +126,8 @@ function drawStick(ctx, c) {
   const ox = act ? c.ox : c.cx, oy = act ? c.oy : c.cy;
   ctx.fillStyle = alpha('#000000', 0.25); ctx.beginPath(); ctx.arc(ox, oy, R, 0, TAU); ctx.fill();
   ctx.lineWidth = Math.max(2, R * 0.05); ctx.strokeStyle = act ? alpha(COL.cyan, 0.85) : COL.edge;
-  ctx.beginPath(); ctx.arc(ox, oy, R, 0, TAU); ctx.stroke();
+  if (act) glow(ctx, COL.cyan, 16);
+  ctx.beginPath(); ctx.arc(ox, oy, R, 0, TAU); ctx.stroke(); noGlow(ctx);
   ctx.lineWidth = 1; ctx.strokeStyle = alpha('#ffffff', 0.08);
   ctx.beginPath(); ctx.arc(ox, oy, R * 0.62, 0, TAU); ctx.stroke();
   const kx = ox + (c.sx || 0) * R, ky = oy + (c.sy || 0) * R, kr = R * 0.46;
@@ -133,19 +143,21 @@ function drawDpad(ctx, c) {
   const R = c.R, x = c.cx, y = c.cy, m = c.mask || 0;
   const arm = R * 0.62, len = R;
   const dirs = [[0, -1, B.UP], [0, 1, B.DOWN], [-1, 0, B.LEFT], [1, 0, B.RIGHT]];
-  ctx.fillStyle = COL.panel2; ctx.strokeStyle = COL.edge; ctx.lineWidth = 2;
+  dropShadow(ctx, x, y, R * 0.85);
+  const dg = ctx.createLinearGradient(0, y - len, 0, y + len); dg.addColorStop(0, '#2A3047'); dg.addColorStop(1, '#141826');
+  ctx.fillStyle = dg; ctx.strokeStyle = COL.edge; ctx.lineWidth = 2;
   rr(ctx, x - len, y - arm / 2, len * 2, arm, arm * 0.28); ctx.fill(); ctx.stroke();
   rr(ctx, x - arm / 2, y - len, arm, len * 2, arm * 0.28); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = COL.panel2; ctx.fillRect(x - arm / 2 + 1, y - arm / 2 + 1, arm - 2, arm - 2);
+  ctx.fillStyle = '#1D2236'; ctx.fillRect(x - arm / 2 + 1, y - arm / 2 + 1, arm - 2, arm - 2);
   for (const d of dirs) {
     const on = (m & (1 << d[2])) !== 0;
     const ax = x + d[0] * len * 0.68, ay = y + d[1] * len * 0.68, s = arm * 0.2;
-    ctx.fillStyle = on ? COL.cyan : COL.dim;
+    ctx.fillStyle = on ? COL.cyan : COL.dim; if (on) glow(ctx, COL.cyan, 12);
     ctx.beginPath();
     ctx.moveTo(ax + d[0] * s, ay + d[1] * s);
     ctx.lineTo(ax - d[1] * s - d[0] * s, ay + d[0] * s - d[1] * s);
     ctx.lineTo(ax + d[1] * s - d[0] * s, ay - d[0] * s - d[1] * s);
-    ctx.closePath(); ctx.fill();
+    ctx.closePath(); ctx.fill(); noGlow(ctx);
   }
 }
 
@@ -360,3 +372,40 @@ function drawF1Wheel(ctx, R, touching) {
   ctx.fillStyle = COL.yellow; rr(ctx, -R * 0.05, -R * 0.62, R * 0.1, R * 0.14, R * 0.03); ctx.fill();
   ctx.restore();
 }
+
+
+/* ------------------------------------------------------------------ look & feel helpers (visual only) */
+let _bgKey = '', _bgCanvas = null;
+function backdrop(ctx, W, H, DPR) {
+  const key = W + 'x' + H + '@' + DPR;
+  if (key !== _bgKey) {
+    _bgKey = key;
+    const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(W * DPR)); c.height = Math.max(1, Math.round(H * DPR));
+    const g = c.getContext('2d'); g.scale(DPR, DPR);
+    const lg = g.createLinearGradient(0, 0, 0, H); lg.addColorStop(0, '#0B0F1A'); lg.addColorStop(1, '#05060A');
+    g.fillStyle = lg; g.fillRect(0, 0, W, H);
+    let rg = g.createRadialGradient(W * 0.12, 0, 0, W * 0.12, 0, Math.max(W, H) * 0.7);
+    rg.addColorStop(0, 'rgba(0,229,255,.10)'); rg.addColorStop(1, 'rgba(0,229,255,0)'); g.fillStyle = rg; g.fillRect(0, 0, W, H);
+    rg = g.createRadialGradient(W * 0.95, H, 0, W * 0.95, H, Math.max(W, H) * 0.7);
+    rg.addColorStop(0, 'rgba(255,46,154,.09)'); rg.addColorStop(1, 'rgba(255,46,154,0)'); g.fillStyle = rg; g.fillRect(0, 0, W, H);
+    g.fillStyle = 'rgba(160,185,255,.07)';
+    const step = 26;
+    for (let y = step; y < H; y += step) for (let x = step; x < W; x += step) g.fillRect(x - 0.75, y - 0.75, 1.5, 1.5);
+    rg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.45, W / 2, H / 2, Math.max(W, H) * 0.8);
+    rg.addColorStop(0, 'rgba(0,0,0,0)'); rg.addColorStop(1, 'rgba(0,0,0,.45)'); g.fillStyle = rg; g.fillRect(0, 0, W, H);
+    _bgCanvas = c;
+  }
+  ctx.drawImage(_bgCanvas, 0, 0, W, H);
+}
+function dropShadow(ctx, x, y, R) { // soft contact shadow under a round control
+  const g = ctx.createRadialGradient(x, y + R * 0.18, R * 0.7, x, y + R * 0.18, R * 1.3);
+  g.addColorStop(0, 'rgba(0,0,0,.45)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y + R * 0.18, R * 1.3, 0, TAU); ctx.fill();
+}
+function sheen(ctx, x, y, R, a) { // glossy highlight on the upper half of a round control
+  const g = ctx.createLinearGradient(0, y - R, 0, y);
+  g.addColorStop(0, 'rgba(255,255,255,' + (a || 0.16) + ')'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R * 0.9, Math.PI, 0); ctx.bezierCurveTo(x + R * 0.5, y - R * 0.12, x - R * 0.5, y - R * 0.12, x - R * 0.9, y); ctx.fill();
+}
+function glow(ctx, col, blur) { ctx.shadowColor = col; ctx.shadowBlur = blur; }
+function noGlow(ctx) { ctx.shadowBlur = 0; ctx.shadowColor = 'transparent'; }

@@ -70,6 +70,36 @@ button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:poin
 
 #toast{position:absolute;left:50%;top:56px;transform:translate(-50%,-14px);background:#10141f;border:1px solid var(--cyan);color:var(--text);padding:9px 16px;border-radius:20px;font-weight:700;font-size:14px;opacity:0;pointer-events:none;transition:.22s;z-index:20;max-width:80vw;text-align:center}
 #toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ---- polish layer ---- */
+.bar{background:linear-gradient(180deg,rgba(18,22,36,.96),rgba(9,11,18,.86));backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid rgba(120,140,200,.18);box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.ib{background:linear-gradient(180deg,#252B42,#161A29);box-shadow:0 1px 0 rgba(255,255,255,.07) inset,0 2px 6px rgba(0,0,0,.4)}
+#title{background:linear-gradient(90deg,var(--cyan),#7AF0FF);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;filter:drop-shadow(0 0 8px rgba(0,229,255,.35))}
+.pill{background:linear-gradient(180deg,#171B2B,#0F1220);box-shadow:0 1px 0 rgba(255,255,255,.05) inset}
+.seg{box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.seg button.on{background:linear-gradient(180deg,#5CF1FF,#00C8E6);box-shadow:0 0 14px rgba(0,229,255,.45)}
+.tbtn{background:linear-gradient(180deg,#252B42,#161A29);box-shadow:0 1px 0 rgba(255,255,255,.07) inset}
+.tbtn.pri{background:linear-gradient(180deg,#5CF1FF,#00C8E6);box-shadow:0 0 14px rgba(0,229,255,.4)}
+.menu,.sheet{background:linear-gradient(180deg,#171B2B,#0F1220);border-color:rgba(120,140,200,.25);box-shadow:0 18px 50px rgba(0,0,0,.7)}
+.menu{animation:pop .16s ease-out;transform-origin:top right}
+.sheet{animation:pop .18s ease-out}
+@keyframes pop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+#bindGrid button{background:linear-gradient(180deg,#252B42,#161A29)}
+#toast{background:linear-gradient(180deg,#171B2B,#0F1220);box-shadow:0 0 22px rgba(0,229,255,.25)}
+
+/* home */
+.logo{font-size:30px;letter-spacing:2px;filter:drop-shadow(0 0 14px rgba(0,229,255,.35))}
+.logo span{background:linear-gradient(90deg,#00E5FF,#FF2E9A);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hint{opacity:.85}
+.card{--ac:var(--cyan);background:radial-gradient(120% 90% at 50% 0%,color-mix(in srgb,var(--ac) 20%,transparent),transparent 60%),linear-gradient(165deg,#1C2135,#10131F);border:1px solid rgba(120,140,200,.22);box-shadow:0 14px 28px rgba(0,0,0,.45),0 1px 0 rgba(255,255,255,.08) inset;animation:rise .45s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*70ms);transition:transform .12s,border-color .12s,box-shadow .12s}
+.card::after{content:"";position:absolute;left:14%;right:14%;bottom:0;height:3px;border-radius:3px 3px 0 0;background:var(--ac);opacity:.9;box-shadow:0 0 16px var(--ac)}
+.card[data-id=xbox]{--ac:#3DDC84}.card[data-id=ps5]{--ac:#4DA3FF}.card[data-id=shooter]{--ac:#FF4D5E}.card[data-id=racing]{--ac:#FFD23F}.card[data-id=f1]{--ac:#FF2E9A}
+.card:active{transform:scale(.97);border-color:var(--ac)}
+.card.last{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac) inset,0 0 26px color-mix(in srgb,var(--ac) 35%,transparent),0 14px 28px rgba(0,0,0,.45)}
+.card .art svg{filter:drop-shadow(0 4px 10px rgba(0,0,0,.5))}
+.card .nm{text-shadow:0 2px 8px rgba(0,0,0,.5)}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.card,.menu,.sheet{animation:none}}
 </style>
 </head>
 <body>

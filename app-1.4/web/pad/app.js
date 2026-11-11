@@ -354,7 +354,7 @@ const ART = {
 function buildHome() {
   const grid = $('#cards'); grid.innerHTML = '';
   PRESET_ORDER.forEach((id) => {
-    const p = PRESETS[id], el = document.createElement('button'); el.className = 'card'; el.dataset.id = id;
+    const p = PRESETS[id], el = document.createElement('button'); el.className = 'card'; el.dataset.id = id; el.style.setProperty('--i', PRESET_ORDER.indexOf(id));
     el.innerHTML = '<div class="art">' + ART[id] + '</div><div class="nm">' + p.name + '</div><div class="sb">' + p.sub + '</div>';
     el.onclick = () => openPreset(id);
     grid.appendChild(el);
@@ -400,7 +400,7 @@ function frame(now) {
 function draw() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, W, H);
+  backdrop(ctx, W, H, DPR);
   if (G.edit) drawGrid();
   const fns = { look: drawLook, touchpad: drawTouchpad, graph: drawGraph, lights: drawLights, speedo: drawSpeedo, pedal: drawPedal, wheel: drawWheel, stick: drawStick, dpad: drawDpad, btn: drawBtn, pill: drawPill, rotary: drawRotary };
   for (const t of ORDER) {
