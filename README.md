@@ -39,3 +39,6 @@ In F1 2020: Settings > Telemetry Settings > UDP Telemetry **On**, IP `127.0.0.1`
 
 ### 1.4.2 — visual polish
 New backdrop, glossy controls with press glow, coloured layout cards and smoother menus. No functional changes.
+
+### 1.4.3 — opacity + new F1 wheel
+Per-control opacity in edit mode (Opacity button) and a global "Control opacity" in the gear menu. Redrawn F1 steering wheel (metal-bezel screen, carbon body, stitched grips). Graph unchanged.

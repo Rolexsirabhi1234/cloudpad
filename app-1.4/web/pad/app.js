@@ -269,12 +269,20 @@ function updateEditBar() {
   const c = G.sel;
   $('#eName').textContent = c ? c.name : 'Tap a control to move it';
   $('#eHint').textContent = c ? 'Drag to move · pinch or use − / + to resize' : 'Drag any control · pinch to resize';
-  for (const id of ['eSm', 'eBig', 'eHide']) $('#' + id).disabled = !c;
+  for (const id of ['eSm', 'eBig', 'eHide', 'eOp']) $('#' + id).disabled = !c;
+  $('#eOp').textContent = 'Opacity' + (c ? ' ' + Math.round((c.op === undefined ? 1 : c.op) * 100) + '%' : '');
   $('#eHide').textContent = c && c.hidden ? 'Show' : 'Hide';
   const canBind = c && (c.t === 'btn' || c.t === 'pill') && c.bind !== undefined;
   $('#eBind').disabled = !canBind;
   $('#eBind').textContent = canBind ? 'Button: ' + BTN_NAMES[c.bind].split(' ')[0] : 'Button';
 }
+const OPS = [1, 0.8, 0.6, 0.4, 0.2];
+function nextOp(v) { let i = OPS.findIndex((o) => Math.abs(o - v) < 0.03); return OPS[(i + 1) % OPS.length]; }
+G.opAll = parseFloat(store('cp_opacity')) || 1;
+function paintOpMenu() { $('#mOpacity').textContent = 'Control opacity: ' + Math.round(G.opAll * 100) + '%'; }
+paintOpMenu();
+$('#mOpacity').onclick = (e) => { e.stopPropagation(); G.opAll = nextOp(G.opAll); store('cp_opacity', String(G.opAll)); paintOpMenu(); };
+$('#eOp').onclick = () => { if (G.sel) { G.sel.op = nextOp(G.sel.op === undefined ? 1 : G.sel.op); updateEditBar(); } };
 let resetArmed = 0;
 $('#eSm').onclick = () => { if (G.sel) { G.sel.s = clamp(G.sel.s * 0.9, 0.5, 2.2); resolve(G.sel); } };
 $('#eBig').onclick = () => { if (G.sel) { G.sel.s = clamp(G.sel.s * 1.1, 0.5, 2.2); resolve(G.sel); } };
@@ -407,7 +415,7 @@ function draw() {
     for (const c of G.controls) {
       if (c.t !== t) continue;
       if (c.hidden && !G.edit) continue;
-      if (c.hidden) ctx.globalAlpha = 0.22;
+      ctx.globalAlpha = (c.op === undefined ? 1 : c.op) * G.opAll * (c.hidden ? 0.22 : 1);
       fns[t](ctx, c);
       ctx.globalAlpha = 1;
     }

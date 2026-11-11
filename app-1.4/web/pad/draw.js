@@ -308,49 +308,87 @@ function drawWheel(ctx, c) {
 }
 
 function drawF1Wheel(ctx, R, touching) {
-  // carbon fibre pattern
+  // carbon weave
   if (!G.carbon) {
     const p = document.createElement('canvas'); p.width = p.height = 8; const q = p.getContext('2d');
-    q.fillStyle = '#10131B'; q.fillRect(0, 0, 8, 8); q.fillStyle = '#181C27'; q.fillRect(0, 0, 4, 4); q.fillRect(4, 4, 4, 4);
+    q.fillStyle = '#0E1118'; q.fillRect(0, 0, 8, 8); q.fillStyle = '#171B26'; q.fillRect(0, 0, 4, 4); q.fillRect(4, 4, 4, 4);
     G.carbon = ctx.createPattern(p, 'repeat');
   }
-  const body = () => {
+  // modern F1 wheel outline: flat top, swept shoulders, long angled grips, hub notch underneath
+  const body = (k) => {
+    k = k || 1;
     ctx.beginPath();
-    ctx.moveTo(-R * 0.62, -R * 0.52);
-    ctx.lineTo(R * 0.62, -R * 0.52);
-    ctx.quadraticCurveTo(R * 0.8, -R * 0.5, R * 0.86, -R * 0.3);
-    ctx.lineTo(R * 1.0, R * 0.34);
-    ctx.quadraticCurveTo(R * 1.04, R * 0.62, R * 0.84, R * 0.66);
-    ctx.lineTo(R * 0.46, R * 0.66);
-    ctx.quadraticCurveTo(R * 0.36, R * 0.52, R * 0.24, R * 0.52);
-    ctx.lineTo(-R * 0.24, R * 0.52);
-    ctx.quadraticCurveTo(-R * 0.36, R * 0.52, -R * 0.46, R * 0.66);
-    ctx.lineTo(-R * 0.84, R * 0.66);
-    ctx.quadraticCurveTo(-R * 1.04, R * 0.62, -R * 1.0, R * 0.34);
-    ctx.lineTo(-R * 0.86, -R * 0.3);
-    ctx.quadraticCurveTo(-R * 0.8, -R * 0.5, -R * 0.62, -R * 0.52);
+    ctx.moveTo(-R * 0.60 * k, -R * 0.56 * k);
+    ctx.lineTo(R * 0.60 * k, -R * 0.56 * k);
+    ctx.bezierCurveTo(R * 0.76 * k, -R * 0.56 * k, R * 0.84 * k, -R * 0.46 * k, R * 0.88 * k, -R * 0.30 * k);
+    ctx.bezierCurveTo(R * 0.93 * k, -R * 0.08 * k, R * 1.02 * k, R * 0.20 * k, R * 1.05 * k, R * 0.42 * k);
+    ctx.bezierCurveTo(R * 1.08 * k, R * 0.64 * k, R * 0.98 * k, R * 0.72 * k, R * 0.84 * k, R * 0.70 * k);
+    ctx.lineTo(R * 0.52 * k, R * 0.70 * k);
+    ctx.bezierCurveTo(R * 0.40 * k, R * 0.70 * k, R * 0.36 * k, R * 0.54 * k, R * 0.22 * k, R * 0.54 * k);
+    ctx.lineTo(-R * 0.22 * k, R * 0.54 * k);
+    ctx.bezierCurveTo(-R * 0.36 * k, R * 0.54 * k, -R * 0.40 * k, R * 0.70 * k, -R * 0.52 * k, R * 0.70 * k);
+    ctx.lineTo(-R * 0.84 * k, R * 0.70 * k);
+    ctx.bezierCurveTo(-R * 0.98 * k, R * 0.72 * k, -R * 1.08 * k, R * 0.64 * k, -R * 1.05 * k, R * 0.42 * k);
+    ctx.bezierCurveTo(-R * 1.02 * k, R * 0.20 * k, -R * 0.93 * k, -R * 0.08 * k, -R * 0.88 * k, -R * 0.30 * k);
+    ctx.bezierCurveTo(-R * 0.84 * k, -R * 0.46 * k, -R * 0.76 * k, -R * 0.56 * k, -R * 0.60 * k, -R * 0.56 * k);
     ctx.closePath();
   };
-  ctx.save(); ctx.translate(0, 0);
+  ctx.save();
+  // contact shadow
+  ctx.save(); ctx.translate(0, R * 0.05); body(1.03); ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fill(); ctx.restore();
+  // carbon body + lighting
   body(); ctx.fillStyle = G.carbon; ctx.fill();
-  ctx.lineWidth = R * 0.03; ctx.strokeStyle = touching ? COL.cyan : '#3A4160'; ctx.stroke();
-  // grip pads
-  for (const s of [-1, 1]) {
-    ctx.save(); ctx.scale(s, 1);
-    ctx.fillStyle = '#0B0D13'; rr(ctx, R * 0.78, -R * 0.12, R * 0.2, R * 0.66, R * 0.09); ctx.fill();
-    ctx.strokeStyle = alpha('#ffffff', 0.08); ctx.lineWidth = 1;
-    for (let i = 0; i < 7; i++) { const yy = -R * 0.06 + i * R * 0.085; ctx.beginPath(); ctx.moveTo(R * 0.8, yy); ctx.lineTo(R * 0.96, yy); ctx.stroke(); }
+  ctx.save(); body(); ctx.clip();
+  let lg = ctx.createLinearGradient(0, -R * 0.56, 0, R * 0.7);
+  lg.addColorStop(0, 'rgba(120,140,190,.30)'); lg.addColorStop(0.35, 'rgba(60,70,100,.08)'); lg.addColorStop(1, 'rgba(0,0,0,.45)');
+  ctx.fillStyle = lg; ctx.fillRect(-R * 1.2, -R * 0.6, R * 2.4, R * 1.4);
+  // diagonal gloss streak
+  lg = ctx.createLinearGradient(-R * 0.9, -R * 0.5, R * 0.1, R * 0.6);
+  lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(0.45, 'rgba(255,255,255,.07)'); lg.addColorStop(0.6, 'rgba(255,255,255,0)');
+  ctx.fillStyle = lg; ctx.fillRect(-R * 1.2, -R * 0.6, R * 2.4, R * 1.4);
+  // colour band along the top edge
+  lg = ctx.createLinearGradient(-R * 0.9, 0, R * 0.9, 0); lg.addColorStop(0, COL.mag); lg.addColorStop(0.5, '#6A5CFF'); lg.addColorStop(1, COL.cyan);
+  ctx.fillStyle = lg; ctx.globalAlpha = 0.9; ctx.fillRect(-R * 1.2, -R * 0.56, R * 2.4, R * 0.035); ctx.globalAlpha = 1;
+  ctx.restore();
+  // bevelled edge
+  body(); ctx.lineWidth = R * 0.04;
+  lg = ctx.createLinearGradient(-R, -R * 0.5, R, R * 0.7);
+  lg.addColorStop(0, touching ? COL.cyan : '#7C86AD'); lg.addColorStop(0.5, touching ? COL.cyan : '#2A3150'); lg.addColorStop(1, touching ? COL.cyan : '#4A5478');
+  ctx.strokeStyle = lg; if (touching) glow(ctx, COL.cyan, R * 0.12); ctx.stroke(); noGlow(ctx);
+  body(0.965); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.stroke();
+  // rubber grips with stitching + thumb glow
+  for (const sd of [-1, 1]) {
+    ctx.save(); ctx.scale(sd, 1);
+    const gg = ctx.createLinearGradient(R * 0.74, 0, R * 1.02, 0); gg.addColorStop(0, '#0A0C11'); gg.addColorStop(0.6, '#161922'); gg.addColorStop(1, '#0A0C11');
+    ctx.beginPath(); ctx.moveTo(R * 0.80, -R * 0.14); ctx.bezierCurveTo(R * 0.90, -R * 0.02, R * 0.98, R * 0.26, R * 1.00, R * 0.44);
+    ctx.bezierCurveTo(R * 1.01, R * 0.58, R * 0.95, R * 0.62, R * 0.86, R * 0.60); ctx.bezierCurveTo(R * 0.80, R * 0.40, R * 0.76, R * 0.16, R * 0.80, -R * 0.14); ctx.closePath();
+    ctx.fillStyle = gg; ctx.fill();
+    ctx.setLineDash([R * 0.03, R * 0.025]); ctx.lineWidth = 1.2; ctx.strokeStyle = sd < 0 ? alpha(COL.mag, 0.4) : alpha(COL.cyan, 0.4); ctx.stroke(); ctx.setLineDash([]);
+    ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.lineWidth = 1;
+    for (let i = 0; i < 6; i++) { const yy = R * (0.02 + i * 0.09); ctx.beginPath(); ctx.moveTo(R * (0.82 + i * 0.012), yy); ctx.lineTo(R * (0.96 + i * 0.006), yy + R * 0.015); ctx.stroke(); }
     ctx.restore();
   }
-  // accent stripes
-  ctx.lineWidth = R * 0.022; ctx.lineCap = 'round';
-  ctx.strokeStyle = COL.mag; ctx.beginPath(); ctx.moveTo(-R * 0.74, -R * 0.44); ctx.lineTo(-R * 0.5, -R * 0.44); ctx.stroke();
-  ctx.strokeStyle = COL.cyan; ctx.beginPath(); ctx.moveTo(R * 0.5, -R * 0.44); ctx.lineTo(R * 0.74, -R * 0.44); ctx.stroke();
-  ctx.lineCap = 'butt';
-  // LCD screen
+  // shoulder accent LEDs
+  ctx.lineCap = 'round'; ctx.lineWidth = R * 0.03;
+  ctx.strokeStyle = COL.mag; glow(ctx, COL.mag, R * 0.08); ctx.beginPath(); ctx.moveTo(-R * 0.76, -R * 0.40); ctx.lineTo(-R * 0.54, -R * 0.40); ctx.stroke();
+  ctx.strokeStyle = COL.cyan; glow(ctx, COL.cyan, R * 0.08); ctx.beginPath(); ctx.moveTo(R * 0.54, -R * 0.40); ctx.lineTo(R * 0.76, -R * 0.40); ctx.stroke();
+  noGlow(ctx); ctx.lineCap = 'butt';
+  // badge plate under the screen
+  const bpl = ctx.createLinearGradient(0, R * 0.43, 0, R * 0.52); bpl.addColorStop(0, '#2B3150'); bpl.addColorStop(1, '#12151F');
+  ctx.fillStyle = bpl; rr(ctx, -R * 0.19, R * 0.43, R * 0.38, R * 0.085, R * 0.03); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 1; rr(ctx, -R * 0.19, R * 0.43, R * 0.38, R * 0.085, R * 0.03); ctx.stroke();
+  text(ctx, 'CLOUDPAD', 0, R * 0.474, R * 0.056, COL.cyan, 800);
+  // LCD with metal bezel
   const sx = -R * 0.5, sy = -R * 0.42, sw = R * 1.0, sh = R * 0.78;
-  ctx.fillStyle = '#04060A'; rr(ctx, sx, sy, sw, sh, R * 0.06); ctx.fill();
-  ctx.lineWidth = 2; ctx.strokeStyle = alpha(COL.cyan, 0.55); rr(ctx, sx, sy, sw, sh, R * 0.06); ctx.stroke();
+  const bz = ctx.createLinearGradient(0, sy, 0, sy + sh); bz.addColorStop(0, '#59628A'); bz.addColorStop(0.5, '#1B2036'); bz.addColorStop(1, '#3A4264');
+  ctx.fillStyle = bz; rr(ctx, sx - R * 0.025, sy - R * 0.025, sw + R * 0.05, sh + R * 0.05, R * 0.08); ctx.fill();
+  const sg = ctx.createLinearGradient(0, sy, 0, sy + sh); sg.addColorStop(0, '#0A1424'); sg.addColorStop(1, '#03060C');
+  ctx.fillStyle = sg; rr(ctx, sx, sy, sw, sh, R * 0.06); ctx.fill();
+  ctx.save(); rr(ctx, sx, sy, sw, sh, R * 0.06); ctx.clip();
+  ctx.fillStyle = 'rgba(0,229,255,.03)'; for (let yy = sy; yy < sy + sh; yy += 4) ctx.fillRect(sx, yy, sw, 1);
+  lg = ctx.createLinearGradient(sx, sy, sx + sw * 0.7, sy + sh); lg.addColorStop(0, 'rgba(255,255,255,.10)'); lg.addColorStop(0.35, 'rgba(255,255,255,0)');
+  ctx.fillStyle = lg; ctx.fillRect(sx, sy, sw, sh); ctx.restore();
+  ctx.lineWidth = 1.5; ctx.strokeStyle = alpha(COL.cyan, 0.6); rr(ctx, sx, sy, sw, sh, R * 0.06); ctx.stroke();
   // speed
   text(ctx, speedText(), 0, sy + sh * 0.34, R * 0.235, '#fff', 800);
   text(ctx, 'KM/H', 0, sy + sh * 0.56, R * 0.08, COL.dim, 700);
@@ -368,8 +406,8 @@ function drawF1Wheel(ctx, R, touching) {
   ctx.fillStyle = rg; rr(ctx, bx, by, Math.max(2, bw * clamp((live.rpm - 4000) / 8800, 0, 1)), sh * 0.1, sh * 0.05); ctx.fill();
   text(ctx, Math.round(live.rpm / 100) * 100 + ' RPM', 0, sy + sh * 0.955, R * 0.07, COL.dim, 700);
   if (!live.isLive()) text(ctx, 'EST', sx + sw * 0.86, sy + sh * 0.56, R * 0.07, COL.amber, 800);
-  // top centre marker
-  ctx.fillStyle = COL.yellow; rr(ctx, -R * 0.05, -R * 0.62, R * 0.1, R * 0.14, R * 0.03); ctx.fill();
+  // centre marker
+  ctx.fillStyle = COL.yellow; glow(ctx, COL.yellow, R * 0.08); rr(ctx, -R * 0.045, -R * 0.64, R * 0.09, R * 0.16, R * 0.03); ctx.fill(); noGlow(ctx);
   ctx.restore();
 }
 

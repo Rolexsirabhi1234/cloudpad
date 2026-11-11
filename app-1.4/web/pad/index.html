@@ -30,6 +30,7 @@ button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:poin
 .tbtn.pri{background:var(--cyan);color:#001318;border-color:var(--cyan)}
 .tbtn.warn{color:var(--amber)}
 .tbtn:disabled{opacity:.35}
+#ebar{overflow-x:auto;scrollbar-width:none}#ebar::-webkit-scrollbar{display:none}#ebar .tbtn{padding:0 10px;flex:none}
 #ebar .nm{font-weight:800;font-size:15px;color:var(--cyan);white-space:nowrap}
 #ebar .ht{font-size:11px;color:var(--dim);white-space:nowrap}
 #ebar .col{display:flex;flex-direction:column;line-height:1.15;min-width:0}
@@ -122,6 +123,7 @@ button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:poin
     <button class="tbtn" id="eSm">−</button><button class="tbtn" id="eBig">+</button>
     <button class="tbtn" id="eHide">Hide</button>
     <button class="tbtn" id="eBind">Button</button>
+    <button class="tbtn" id="eOp">Opacity</button>
     <button class="tbtn warn" id="eReset">Reset</button>
     <button class="tbtn" id="eCancel">Cancel</button>
     <button class="tbtn pri" id="eDone">Done</button>
@@ -131,6 +133,7 @@ button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:poin
     <button id="mEdit">Edit layout</button>
     <button id="mSteer">Switch tilt / wheel steering</button>
     <button id="mCenter">Re-centre tilt</button>
+    <button id="mOpacity">Control opacity</button>
     <button id="mReset">Reset this layout</button>
     <hr>
     <button id="mHome">Choose another layout</button>

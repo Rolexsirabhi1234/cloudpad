@@ -106,7 +106,7 @@ function buildLayout(preset, area) {
     L.push(pedal('gas', 0.95, 0.71, 0.17, 0.56, 'GAS', COL.green, B.RT));
     L.push(pill('down', 0.045, 0.21, 0.14, 0.27, '−', COL.dim, B.LB, { name: 'Downshift paddle', paddle: true }));
     L.push(pill('up', 0.955, 0.21, 0.14, 0.27, '+', COL.dim, B.RB, { name: 'Upshift paddle', paddle: true }));
-    L.push({ id: 'wheel', t: 'wheel', style: 'f1', x: 0.5, y: 0.66, r: 0.47, name: 'Steering wheel' });
+    L.push({ id: 'wheel', t: 'wheel', style: 'f1', x: 0.5, y: 0.645, r: 0.44, name: 'Steering wheel' });
     L.push({ id: 'lights', t: 'lights', x: 0.5, y: 0.045, w: 0.62, h: 0.06, name: 'Shift lights' });
     L.push({ id: 'graph', t: 'graph', x: 0.5, y: 0.20, w: 0.56, h: 0.17, name: 'Input graph' });
     // colour keys, left cluster
@@ -136,12 +136,13 @@ function applySaved(controls, saved) {
   for (const c of controls) {
     if (c.defX === undefined) { c.defX = c.x; c.defY = c.y; c.defHidden = !!c.hidden; c.defBind = c.bind; }
     // always start from the factory defaults, then lay the saved tweaks on top
-    c.x = c.defX; c.y = c.defY; c.hidden = c.defHidden; c.bind = c.defBind; c.s = 1;
+    c.x = c.defX; c.y = c.defY; c.hidden = c.defHidden; c.bind = c.defBind; c.s = 1; c.op = 1;
     const s = saved[c.id];
     if (!s) continue;
     if (isFinite(s.x)) c.x = clamp(s.x, 0, 1);
     if (isFinite(s.y)) c.y = clamp(s.y, 0, 1);
     if (isFinite(s.s)) c.s = clamp(s.s, 0.5, 2.2);
+    if (isFinite(s.o)) c.op = clamp(s.o, 0.1, 1);
     if (s.h === 1 || s.h === 0) c.hidden = s.h === 1;
     if (isFinite(s.b) && s.b >= 0 && s.b <= 16 && c.bind !== undefined) c.bind = s.b | 0;
   }
@@ -154,6 +155,7 @@ function serializeLayout(controls) {
     if (Math.abs(c.x - c.defX) > 1e-4) e.x = +c.x.toFixed(4);
     if (Math.abs(c.y - c.defY) > 1e-4) e.y = +c.y.toFixed(4);
     if (Math.abs(c.s - 1) > 1e-3) e.s = +c.s.toFixed(3);
+    if (c.op !== undefined && Math.abs(c.op - 1) > 1e-3) e.o = +c.op.toFixed(2);
     if (!!c.hidden !== c.defHidden) e.h = c.hidden ? 1 : 0;
     if (c.bind !== undefined && c.bind !== c.defBind) e.b = c.bind;
     if (Object.keys(e).length) o[c.id] = e;
