@@ -53,6 +53,39 @@ def rumble_packet(large, small, ms):
     return bytes([1, large & 255, small & 255, ms & 255, (ms >> 8) & 255])
 
 
+F1_PORT = 20777
+
+
+def parse_f1_2020(data):
+    """F1 2020 UDP 'Car Telemetry' packet (id 6, 1307 bytes) -> (speed km/h, rpm, gear, drs) of the player's car."""
+    if len(data) != 1307 or data[5] != 6 or struct.unpack_from("<H", data, 0)[0] != 2020:
+        return None
+    idx = data[22]
+    if idx >= 22:
+        return None
+    o = 24 + idx * 58
+    speed = struct.unpack_from("<H", data, o)[0]
+    gear = struct.unpack_from("<b", data, o + 15)[0]
+    rpm = struct.unpack_from("<H", data, o + 16)[0]
+    return speed, rpm, gear, data[o + 18]
+
+
+def telemetry_packet(speed, rpm, gear, drs):
+    """Sent to the phone: [3, speed u16, rpm u16, gear i8, drs u8, 0]."""
+    return struct.pack("<BHHbBB", 3, min(speed, 65535), min(rpm, 65535), gear, drs, 0)
+
+
+class _F1Udp(asyncio.DatagramProtocol):
+    def __init__(self, engine):
+        self.engine = engine
+
+    def datagram_received(self, data, addr):
+        self.engine.on_f1(data)
+
+    def error_received(self, exc):
+        pass
+
+
 def _c16(v):
     return max(-32768, min(32767, v))
 
@@ -272,7 +305,7 @@ class Engine:
         except Exception:
             self.problem = "bleak"
             self.log("The 'bleak' package is missing - Bluetooth is off, USB cable still works. Press Install.")
-        jobs = [self.usb_loop(), self.rumble_loop()]
+        jobs = [self.usb_loop(), self.rumble_loop(), self.f1_loop()]
         if self.ble_ok:
             jobs.append(self.ble_loop())
         await asyncio.gather(*jobs)
@@ -445,6 +478,34 @@ class Engine:
             self.busy = False
             if slot.connected and slot.transport == "bluetooth":
                 self.detach(slot, "disconnected")
+
+    # -- F1 2020 telemetry -> phone gauges
+    async def f1_loop(self):
+        self.f1_last = 0.0
+        self.f1_seen = False
+        try:
+            await asyncio.get_running_loop().create_datagram_endpoint(lambda: _F1Udp(self), local_addr=("0.0.0.0", F1_PORT))
+        except Exception as e:
+            self.log("F1 telemetry listener unavailable (port %d busy?): %s" % (F1_PORT, e))
+            return
+        while True:
+            await asyncio.sleep(3600)
+
+    def on_f1(self, data):
+        t = parse_f1_2020(data)
+        if t is None:
+            return
+        now = time.time()
+        if not self.f1_seen:
+            self.f1_seen = True
+            self.log("F1 2020 telemetry is arriving - the phone's speedometer will go LIVE.")
+        if now - self.f1_last < 0.05:                      # 20 updates a second is plenty
+            return
+        self.f1_last = now
+        for s in self.slots:                               # Player 1 is the driver
+            if s.connected:
+                asyncio.ensure_future(self.write(s, telemetry_packet(*t)))
+                break
 
     # -- USB cable
     async def usb_loop(self):

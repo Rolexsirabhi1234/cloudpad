@@ -201,7 +201,7 @@ function drawRotary(ctx, c) {
 /* ------------------------------------------------------------------ gauges */
 function speedText() { return Math.round(live.speed); }
 function rpmFrac() { return clamp((live.rpm - 8000) / (12400 - 8000), 0, 1); }
-function gearText() { return live.gear === 0 ? 'N' : String(live.gear); }
+function gearText() { return live.gear === 0 ? 'N' : live.gear < 0 ? 'R' : String(live.gear); }
 
 function drawGauge(ctx, cx, cy, R, big) {
   const a0 = Math.PI * 0.75, sweep = Math.PI * 1.5, max = 360, f = clamp(live.speed / max, 0, 1);

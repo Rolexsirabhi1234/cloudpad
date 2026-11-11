@@ -92,6 +92,7 @@ public class GamepadView extends WebView {
     public GamepadView(Context context, Listener listener) {
         super(context);
         this.listener = listener;
+        Telemetry.view = this;
         setBackgroundColor(Color.parseColor("#07080C"));
         setHapticFeedbackEnabled(false);
         setOverScrollMode(View.OVER_SCROLL_NEVER);
@@ -155,6 +156,10 @@ public class GamepadView extends WebView {
 
     public GamepadState getState() {
         return state;
+    }
+
+    void telemetry(int speed, int rpm, int gear, int drs) {
+        js("cp.telemetry({speed:" + speed + ",rpm:" + rpm + ",gear:" + gear + ",drs:" + drs + "})");
     }
 
     public void setConnected(boolean z) {

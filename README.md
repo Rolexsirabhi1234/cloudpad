@@ -33,3 +33,6 @@ Home screen with five layouts: **Xbox, PS5, Shooter, Racing, Formula 1**.
 - PS5 is a cosmetic layout; the PC still sees an Xbox pad.
 
 Source for the new UI is in `app-1.4/` (web UI in `web/pad`, Java view in `java`, `build.sh` builds on top of the 1.3 smali project in `app/`).
+
+### 1.4.1 — live F1 2020 telemetry
+In F1 2020: Settings > Telemetry Settings > UDP Telemetry **On**, IP `127.0.0.1`, port `20777`, rate 20 Hz. The Bridge decodes the player's speed/RPM/gear/DRS and sends it to the phone; the gauges switch from EST to LIVE. Needs both the new APK and the new Bridge.
