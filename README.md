@@ -54,3 +54,6 @@ Home-screen layout cards are multicolour again; rest of the app stays emerald.
 
 ### 1.5.3 — Crimson theme
 Crimson on black-red, app and Bridge; home cards stay multicolour.
+
+### 1.6.0 — Wi-Fi option
+Phones can now join over Wi-Fi or the laptop's Mobile Hotspot (turn it on in the Bridge's Wi-Fi box; off by default). Use the laptop hotspot on hostel/college networks that block phone-to-laptop traffic. `bridge/test_wifi.py` simulates a phone to test the network path.

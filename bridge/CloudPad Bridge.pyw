@@ -5,6 +5,8 @@ Double-click to open. Up to 4 phones (local co-op), each one its own Xbox 360 co
   * Bluetooth: hold a phone next to the laptop to join (distance is adjustable).
   * USB cable: plug the phone in and turn on USB tethering - it joins by itself and is the
     most reliable option. A Bluetooth player who plugs in moves to the cable automatically.
+  * Wi-Fi: turn it on in the Wi-Fi box, put the phone on the same network (best: this laptop's
+    Mobile Hotspot) and open CloudPad. Off by default because it probes the local network.
 
 Needs:  python -m pip install bleak vgamepad   (the window has an Install button)
 """
@@ -149,13 +151,8 @@ SKIP_NETS = re.compile(r"wi-?fi|wireless|wlan|802\.11|bluetooth|hyper-v|vetherne
 PHONE_NETS = re.compile(r"ndis|ncm|android|apple mobile|tether|mobile|iphone", re.I)
 
 
-def find_usb_nets():
-    """Wired networks a phone could be on (USB tethering shows up as RNDIS or, on newer phones, NCM).
-    Each entry: alias, desc, ip, phone (looks like a phone), targets (addresses to say hello to)."""
-    env = os.environ.get("CLOUDPAD_USB_IPS")
-    if env:
-        return [{"alias": "Test", "desc": "Remote NDIS test", "ip": ip.strip(), "phone": True,
-                 "targets": [ip.strip()]} for ip in env.split(",") if ip.strip()]
+def _net_configs():
+    """Every adapter that has an IPv4 address, as dicts (Windows only)."""
     if not IS_WIN:
         return []
     ps = ("Get-NetIPConfiguration | Where-Object { $_.IPv4Address } | ForEach-Object { [pscustomobject]@{ "
@@ -168,8 +165,18 @@ def find_usb_nets():
         data = json.loads(out) if out else []
     except Exception:
         return []
-    if isinstance(data, dict):
-        data = [data]
+    return [data] if isinstance(data, dict) else data
+
+
+def find_usb_nets(data=None):
+    """Wired networks a phone could be on (USB tethering shows up as RNDIS or, on newer phones, NCM).
+    Each entry: alias, desc, ip, phone (looks like a phone), targets (addresses to say hello to)."""
+    env = os.environ.get("CLOUDPAD_USB_IPS")
+    if env:
+        return [{"alias": "Test", "desc": "Remote NDIS test", "ip": ip.strip(), "phone": True,
+                 "targets": [ip.strip()]} for ip in env.split(",") if ip.strip()]
+    if data is None:
+        data = _net_configs()
     nets = []
     for d in data:
         name = "%s %s" % (d.get("alias", ""), d.get("desc", ""))
@@ -186,6 +193,52 @@ def find_usb_nets():
             pass
         nets.append({"alias": d.get("alias", ""), "desc": d.get("desc", ""), "ip": ip,
                      "phone": bool(PHONE_NETS.search(name)), "targets": list(dict.fromkeys(targets))})
+    return nets
+
+
+# Wi-Fi (and the laptop's own Mobile Hotspot, which Windows shows as a "Wi-Fi Direct Virtual Adapter")
+WIFI_NETS = re.compile(r"wi-?fi|wireless|wlan|802\.11|local area connection\*", re.I)
+NOT_WIFI = re.compile(r"bluetooth|hyper-v|vethernet|virtualbox|vmware|wsl|loopback|tap-|vpn|wireguard|tailscale|"
+                      r"zerotier|npcap|kernel debug", re.I)
+
+
+def find_wifi_nets(data=None):
+    """Private Wi-Fi / hotspot networks a phone could be on. Same shape as find_usb_nets, plus wifi=True and
+    net (the /24 or smaller network, as text). Targets: broadcast, gateway, then every address."""
+    env = os.environ.get("CLOUDPAD_WIFI_IPS")
+    if env:
+        return [{"alias": "Test", "desc": "Wi-Fi test", "ip": ip.strip(), "phone": False, "wifi": True,
+                 "net": ip.strip() + "/32", "targets": [ip.strip()]} for ip in env.split(",") if ip.strip()]
+    if data is None:
+        data = _net_configs()
+    nets = []
+    for d in data:
+        name = "%s %s" % (d.get("alias", ""), d.get("desc", ""))
+        ip = d.get("ip") or ""
+        if not ip or not WIFI_NETS.search(name) or (NOT_WIFI.search(name) and "direct" not in name.lower()):
+            continue
+        try:
+            addr = ipaddress.IPv4Address(ip)
+            if not addr.is_private or addr.is_link_local or addr.is_loopback:
+                continue
+            prefix = max(24, int(d.get("prefix") or 24))        # never sweep more than 254 addresses
+            net = ipaddress.IPv4Network("%s/%d" % (ip, prefix), strict=False)
+        except Exception:
+            continue
+        targets = [str(net.broadcast_address)]
+        if d.get("gw"):
+            targets.insert(0, d["gw"])
+        targets += [str(h) for h in net.hosts() if str(h) != ip and str(h) != d.get("gw")]
+        nets.append({"alias": d.get("alias", ""), "desc": d.get("desc", ""), "ip": ip, "phone": False,
+                     "wifi": True, "net": str(net), "targets": list(dict.fromkeys(targets))})
+    return nets
+
+
+def find_all_nets(wifi):
+    data = _net_configs()
+    nets = find_usb_nets(data)
+    if wifi:
+        nets += find_wifi_nets(data)
     return nets
 
 
@@ -222,7 +275,8 @@ class Slot:
         self.transport = None      # "bluetooth" | "usb"
         self.client = None
         self.address = None        # Bluetooth address
-        self.addr = None           # USB (ip, port)
+        self.addr = None           # USB / Wi-Fi (ip, port)
+        self.link = None           # "usb" or "wifi" for network players
         self.pad = None
         self.last_input = 0.0
         self.large = self.small = 0
@@ -249,6 +303,7 @@ class Engine:
         self.udp = None
         self.usb_peers = {}
         self.usb_nets = []
+        self.wifi = False          # Wi-Fi phones are opt-in (it probes the local network)
         self.usb_first_seen = {}   # net ip -> when we first saw that network
         self.usb_replied = {}      # net ip -> last reply from a phone on it
         self.usb_known = {}        # phone ip -> last reply: these get a hello on every tick
@@ -343,11 +398,23 @@ class Engine:
     def attach(self, slot, key, transport, client=None, addr=None):
         self.ensure_pad(slot)
         slot.key, slot.transport, slot.client, slot.addr = key, transport, client, addr
+        slot.link = self.link_for(addr) if transport == "usb" else None
         slot.connected = True
         slot.large = slot.small = 0
         self.nearby.pop(key, None)
-        self.log("%s joined as Player %d (%s)." % (key, slot.number, "USB cable" if transport == "usb" else "Bluetooth"))
+        self.log("%s joined as Player %d (%s)." % (key, slot.number, {"usb": "USB cable", "wifi": "Wi-Fi"}.get(slot.link, "Bluetooth")))
         asyncio.get_running_loop().create_task(self.buzz(slot))
+
+    def link_for(self, addr):
+        """'wifi' if this phone address sits on a Wi-Fi / hotspot network we probe, else 'usb'."""
+        try:
+            ip = ipaddress.IPv4Address(addr[0])
+            for n in self.usb_nets:
+                if n.get("wifi") and ip in ipaddress.IPv4Network(n["net"], strict=False):
+                    return "wifi"
+        except Exception:
+            pass
+        return "usb"
 
     def detach(self, slot, why):
         if not slot.connected:
@@ -525,16 +592,19 @@ class Engine:
             if now - last_find > find_every or self.force_find:
                 self.force_find = False
                 last_find = now
-                self.usb_nets = await loop.run_in_executor(None, find_usb_nets)
+                self.usb_nets = await loop.run_in_executor(None, find_all_nets, self.wifi)
                 ips = {n["ip"] for n in self.usb_nets}
                 for ip in ips:
                     self.usb_first_seen.setdefault(ip, now)
-                for ip in [k for k in self.usb_first_seen if k not in ips]:
+                for k in [k for k in self.usb_first_seen if k not in ips]:
                     del self.usb_first_seen[k]
             sweep = int(now * 4) % 8 == 0              # full address sweep every ~2 s, the rest 4x a second
             send_to = set()
             for n in self.usb_nets:
-                send_to.update(n["targets"] if sweep else n["targets"][:2])
+                if n.get("wifi") and self.wifi_has_phone(n, now):
+                    send_to.update(n["targets"][:2])       # a phone is on this network: stop sweeping it
+                else:
+                    send_to.update(n["targets"] if sweep else n["targets"][:2])
             for ip, t in list(self.usb_known.items()):  # phones that answered: every tick, directly
                 if now - t > 30:
                     del self.usb_known[ip]
@@ -550,7 +620,7 @@ class Engine:
                     del self.usb_peers[addr]
                     s = peer["slot"]
                     if s and s.connected and s.transport == "usb" and s.addr == addr:
-                        self.detach(s, "was unplugged")
+                        self.detach(s, "was unplugged" if s.link == "usb" else "lost the Wi-Fi link")
             await asyncio.sleep(0.25)
 
     def usb_status(self):
@@ -561,7 +631,7 @@ class Engine:
         phones = [n for n in self.usb_nets if n["phone"]]
         quiet = [n for n in phones
                  if now - self.usb_replied.get(n["ip"], 0) > 3 and now - self.usb_first_seen.get(n["ip"], now) > 6]
-        live = sum(1 for s in self.slots if s.connected and s.transport == "usb")
+        live = sum(1 for s in self.slots if s.connected and s.transport == "usb" and s.link != "wifi")
         if quiet:
             n = quiet[0]
             return "waiting", ("Found the phone's USB network (%s) but CloudPad isn't answering on it. Open "
@@ -573,6 +643,36 @@ class Engine:
         if phones:
             return "none", "Phone USB network found. Waiting for CloudPad to answer..."
         return "none", "No phone on USB yet. Plug one in and turn on USB tethering (Settings > Hotspot & tethering)."
+
+    def wifi_has_phone(self, n, now):
+        try:
+            net = ipaddress.IPv4Network(n["net"], strict=False)
+            return any(now - t < 30 and ipaddress.IPv4Address(ip) in net for ip, t in self.usb_known.items())
+        except Exception:
+            return False
+
+    def wifi_status(self):
+        """(state, text) for the Wi-Fi box: off / none / waiting / ok."""
+        if self.udp is None:
+            return "off", "Network mode isn't available on this laptop."
+        if not self.wifi:
+            return "off", "Wi-Fi is off. Turn it on to let phones join over Wi-Fi or this laptop's Mobile Hotspot."
+        now = time.time()
+        nets = [n for n in self.usb_nets if n.get("wifi")]
+        live = sum(1 for s in self.slots if s.connected and s.link == "wifi")
+        if live:
+            return "ok", "%d phone%s connected over Wi-Fi." % (live, "" if live == 1 else "s")
+        if not nets:
+            return "none", ("No Wi-Fi or hotspot network found. Connect this laptop to Wi-Fi, or turn on Mobile "
+                            "Hotspot (Settings > Network > Mobile hotspot).")
+        n = nets[0]
+        quiet = now - self.usb_first_seen.get(n["ip"], now) > 10
+        if quiet and not any(now - self.usb_replied.get(m["ip"], 0) < 5 for m in nets):
+            return "waiting", ("Looking for phones on %s (%s). Put the phone on the same Wi-Fi and open CloudPad. "
+                               "If nothing shows up, this network may block phones from reaching the laptop "
+                               "(common in hostels): turn on Mobile Hotspot here and join it from the phone, or "
+                               "press Allow in firewall." % (n["alias"] or n["desc"], n["ip"]))
+        return "none", "Looking for phones on %s (%s)..." % (n["alias"] or n["desc"], n["ip"])
 
     def refresh(self):
         """Look again right now: rescan Bluetooth and USB, forget stale nearby phones."""
@@ -612,7 +712,8 @@ class Engine:
                 if s.transport == "bluetooth":         # same phone: move it onto the cable
                     s.transport, s.addr = "usb", addr
                     peer["slot"] = s
-                    self.log("%s (Player %d) switched to the USB cable." % (name, s.number))
+                    s.link = self.link_for(addr)
+                    self.log("%s (Player %d) switched to the %s." % (name, s.number, "Wi-Fi link" if s.link == "wifi" else "USB cable"))
                     return
                 if s.addr == addr:
                     peer["slot"] = s
@@ -762,12 +863,13 @@ def run_gui():
             logq.put("Checking the setup again...")
         else:
             engine.refresh()
-            logq.put("Looking for phones again (Bluetooth and USB)...")
+            logq.put("Looking for phones again (Bluetooth, USB and Wi-Fi)...")
 
     refresh_btn = button(ctl, "Refresh", do_refresh, bg=RAISED, fg=TEXT)
     refresh_btn.pack(side="right", anchor="s")
     label(root, "Bluetooth: hold a phone next to the laptop until it shows up below, then sit back. "
-                "USB: plug the phone in and turn on USB tethering - it joins by itself.",
+                "USB: plug the phone in and turn on USB tethering - it joins by itself. "
+                "Wi-Fi: turn it on in the Wi-Fi box below, then open CloudPad on a phone on the same network.",
           SMALL, MUTED, wraplength=760, justify="left").pack(anchor="w", padx=22, pady=(8, 10))
 
     # player cards
@@ -812,6 +914,20 @@ def run_gui():
     usb_text = label(usb_box, "", SMALL, TEXT, wraplength=560, justify="left")
     usb_text.pack(side="left", padx=10, pady=10, anchor="w")
 
+    label(root, "Wi-Fi", HEAD).pack(anchor="w", padx=22, pady=(14, 4))
+    wifi_box = tk.Frame(root, bg=SURFACE)
+    wifi_box.pack(fill="x", padx=22)
+    wifi_dot = tk.Canvas(wifi_box, width=14, height=14, bg=SURFACE, highlightthickness=0)
+    wifi_dot.pack(side="left", padx=(12, 0), pady=12, anchor="n")
+    wifi_text = label(wifi_box, "", SMALL, TEXT, wraplength=520, justify="left")
+    wifi_text.pack(side="left", padx=10, pady=10, anchor="w")
+
+    def toggle_wifi():
+        engine.wifi = not engine.wifi
+        engine.force_find = True
+        wifi_btn.config(text="Turn off" if engine.wifi else "Turn on")
+        logq.put("Wi-Fi phones are %s." % ("on: phones on the same network can join" if engine.wifi else "off"))
+
     def do_firewall():
         try:
             ok = allow_in_firewall()
@@ -820,6 +936,10 @@ def run_gui():
             logq.put("Couldn't change the firewall: %s" % e)
 
     fw_btn = button(usb_box, "Allow in firewall", do_firewall, bg=RAISED, fg=TEXT, small=True)
+    wifi_btn = button(wifi_box, "Turn on", toggle_wifi, bg=RAISED, fg=TEXT, small=True)
+    wifi_btn.pack(side="right", padx=12)
+    wifi_fw = button(wifi_box, "Allow in firewall", do_firewall, bg=RAISED, fg=TEXT, small=True)
+    wifi_shown = {"text": None}
     usb_shown = {"text": None}
 
     def bars(rssi):
@@ -885,7 +1005,7 @@ def run_gui():
                 c["stripe"].config(bg=c["color"])
                 c["num"].config(fg=c["color"])
                 c["name"].config(text=s.key, fg=TEXT)
-                c["chip"].config(text=" USB cable " if s.transport == "usb" else " Bluetooth ",
+                c["chip"].config(text={"usb": " USB cable ", "wifi": " Wi-Fi "}.get(s.link, " Bluetooth ") if s.transport == "usb" else " Bluetooth ",
                                  bg=RAISED, fg=c["color"])
                 c["state"].config(text="Connected - press a button to see this light up")
                 lit = now - s.last_input < 0.25
@@ -917,6 +1037,19 @@ def run_gui():
                 fw_btn.pack(side="right", padx=12)
             else:
                 fw_btn.pack_forget()
+        # Wi-Fi row
+        state_wifi, text_wifi = engine.wifi_status() if not engine.problem or engine.problem == "bleak" else (
+            "off", "Finish the setup above first.")
+        if text_wifi != wifi_shown["text"]:
+            wifi_shown["text"] = text_wifi
+            wifi_text.config(text=text_wifi)
+            wifi_dot.delete("all")
+            wifi_dot.create_oval(2, 2, 12, 12, outline="", fill={"ok": GOOD, "waiting": BAD, "none": MUTED,
+                                                                  "off": LINE}[state_wifi])
+            if state_wifi == "waiting" and IS_WIN:
+                wifi_fw.pack(side="right", padx=4)
+            else:
+                wifi_fw.pack_forget()
         # nearby list
         items = sorted(engine.nearby.items(), key=lambda kv: -(kv[1]["rssi"] or 0))[:4]
         sig = [(k, v["rssi"], v["ok"], v.get("via")) for k, v in items]

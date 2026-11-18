@@ -42,7 +42,7 @@
 
     const/4 v1, 0x1
 
-    const-string v2, "Connected by USB cable"
+    const-string v2, "Connected by cable or Wi-Fi"
 
     const-string v3, "Keep this app open while you play"
 
@@ -53,7 +53,7 @@
     :off
     const/4 v1, 0x0
 
-    const-string v2, "USB cable disconnected"
+    const-string v2, "Cable / Wi-Fi disconnected"
 
     const-string v3, "Plug it back in with USB tethering on, or join over Bluetooth"
 

@@ -141,7 +141,7 @@
 
     move-result-object v0
 
-    const-string v1, "Your phone shows up on the laptop as a normal Xbox controller, so it works in Steam, Epic and any game that supports a controller. Up to 4 phones can play together.\n\nOn the laptop: open CloudPad Bridge (double-click CloudPad Bridge.pyw).\n\nBluetooth (wireless): hold this phone next to the laptop until the Bridge shows it as a player. You can then move back.\n\nUSB cable (most reliable): plug the phone into the laptop and turn on Settings > Hotspot & tethering > USB tethering. It joins by itself. Tip: turn off mobile data on this phone so the laptop keeps using Wi-Fi for internet.\n\nKeep this app open while you play."
+    const-string v1, "Your phone shows up on the laptop as a normal Xbox controller, so it works in Steam, Epic and any game that supports a controller. Up to 4 phones can play together.\n\nOn the laptop: open CloudPad Bridge (double-click CloudPad Bridge.pyw).\n\nBluetooth (wireless): hold this phone next to the laptop until the Bridge shows it as a player. You can then move back.\n\nUSB cable (most reliable): plug the phone into the laptop and turn on Settings > Hotspot & tethering > USB tethering. It joins by itself. Tip: turn off mobile data on this phone so the laptop keeps using Wi-Fi for internet.\n\nWi-Fi: in the Bridge, turn on the Wi-Fi box, then put this phone on the same network. The most reliable way is the laptop's own Mobile Hotspot; hostel and college Wi-Fi often blocks phones from reaching the laptop. It joins by itself.\n\nKeep this app open while you play."
 
     invoke-virtual {v0, v1}, Landroid/app/AlertDialog$Builder;->setMessage(Ljava/lang/CharSequence;)Landroid/app/AlertDialog$Builder;
 
