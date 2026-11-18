@@ -5,8 +5,8 @@ Double-click to open. Up to 4 phones (local co-op), each one its own Xbox 360 co
   * Bluetooth: hold a phone next to the laptop to join (distance is adjustable).
   * USB cable: plug the phone in and turn on USB tethering - it joins by itself and is the
     most reliable option. A Bluetooth player who plugs in moves to the cable automatically.
-  * Wi-Fi: turn it on in the Wi-Fi box, put the phone on the same network (best: this laptop's
-    Mobile Hotspot) and open CloudPad. Off by default because it probes the local network.
+  * Wi-Fi: press Show QR in the Wi-Fi box and scan it with the phone's camera (no network probing),
+    or turn Wi-Fi on so the Bridge finds phones itself. Best network: this laptop's Mobile Hotspot.
 
 Needs:  python -m pip install bleak vgamepad   (the window has an Install button)
 """
@@ -30,6 +30,8 @@ SERVICE_UUID = "4c1b0001-7e36-4f0a-9b5d-2a8e6c3f1d70"
 INPUT_UUID = "4c1b0002-7e36-4f0a-9b5d-2a8e6c3f1d70"
 OUTPUT_UUID = "4c1b0003-7e36-4f0a-9b5d-2a8e6c3f1d70"
 USB_PORT = 47123
+LINK_PORT = 47124      # the Bridge's own UDP port, so a phone can say hello first (QR join)
+QR_HTTP_PORT = 47125   # tiny page the QR code points at
 MAX_PLAYERS = 4
 DISTANCES = [("Next to laptop", -60), ("Same desk", -72), ("Anywhere", -110)]
 
@@ -242,6 +244,208 @@ def find_all_nets(wifi):
     return nets
 
 
+# --------------------------------------------------------------------------- QR code (byte mode, ECC L, v1-5)
+_QR_CAP = {1: (19, 7), 2: (34, 10), 3: (55, 15), 4: (80, 20), 5: (108, 26)}   # version: (data, ecc codewords)
+_QR_ALIGN = {2: 18, 3: 22, 4: 26, 5: 30}
+
+
+def _rs_ecc(data, n):
+    exp, log = [0] * 512, [0] * 256
+    x = 1
+    for i in range(255):
+        exp[i], log[x] = x, i
+        x <<= 1
+        if x & 0x100:
+            x ^= 0x11D
+    for i in range(255, 512):
+        exp[i] = exp[i - 255]
+    mul = lambda a, b: 0 if not a or not b else exp[log[a] + log[b]]
+    gen = [1]
+    for i in range(n):
+        nxt = [0] * (len(gen) + 1)
+        for j, c in enumerate(gen):
+            nxt[j] ^= c
+            nxt[j + 1] ^= mul(c, exp[i])
+        gen = nxt
+    rem = [0] * n
+    for b in data:
+        f = b ^ rem[0]
+        rem = rem[1:] + [0]
+        for i in range(n):
+            rem[i] ^= mul(gen[i + 1], f)
+    return rem
+
+
+def qr_matrix(text):
+    """Return a list of rows of booleans (True = dark) for `text`, or raise ValueError if it is too long."""
+    raw = text.encode("utf-8")
+    ver = next((v for v in sorted(_QR_CAP) if len(raw) <= {1: 17, 2: 32, 3: 53, 4: 78, 5: 106}[v]), None)
+    if ver is None:
+        raise ValueError("text too long for the QR code")
+    ndata, necc = _QR_CAP[ver]
+    bits = [0, 1, 0, 0] + [(len(raw) >> i) & 1 for i in range(7, -1, -1)]
+    for b in raw:
+        bits += [(b >> i) & 1 for i in range(7, -1, -1)]
+    bits += [0] * min(4, ndata * 8 - len(bits))
+    bits += [0] * (-len(bits) % 8)
+    cw = [int("".join(map(str, bits[i:i + 8])), 2) for i in range(0, len(bits), 8)]
+    pad = [0xEC, 0x11]
+    while len(cw) < ndata:
+        cw.append(pad[(len(cw) - len(bits) // 8) % 2])
+    cw += _rs_ecc(cw, necc)
+    size = 17 + 4 * ver
+    mod = [[False] * size for _ in range(size)]
+    fn = [[False] * size for _ in range(size)]
+
+    def setf(x, y, v):
+        mod[y][x] = v
+        fn[y][x] = True
+
+    for i in range(size):                       # timing patterns
+        setf(6, i, i % 2 == 0)
+        setf(i, 6, i % 2 == 0)
+
+    def finder(cx, cy):
+        for dy in range(-4, 5):
+            for dx in range(-4, 5):
+                x, y = cx + dx, cy + dy
+                if 0 <= x < size and 0 <= y < size:
+                    d = max(abs(dx), abs(dy))
+                    setf(x, y, d not in (2, 4))
+    finder(3, 3); finder(size - 4, 3); finder(3, size - 4)
+    if ver >= 2:                                # alignment pattern (bottom-right)
+        c = _QR_ALIGN[ver]
+        for dy in range(-2, 3):
+            for dx in range(-2, 3):
+                setf(c + dx, c + dy, max(abs(dx), abs(dy)) != 1)
+
+    def format_bits(mask):
+        data = (1 << 3) | mask                  # ECC level L = 01
+        rem = data
+        for _ in range(10):
+            rem = (rem << 1) ^ ((rem >> 9) * 0x537)
+        bits = ((data << 10) | rem) ^ 0x5412
+        g = lambda i: ((bits >> i) & 1) != 0
+        for i in range(6):
+            setf(8, i, g(i))
+        setf(8, 7, g(6)); setf(8, 8, g(7)); setf(7, 8, g(8))
+        for i in range(9, 15):
+            setf(14 - i, 8, g(i))
+        for i in range(8):
+            setf(size - 1 - i, 8, g(i))
+        for i in range(8, 15):
+            setf(8, size - 15 + i, g(i))
+        setf(8, size - 8, True)
+    format_bits(0)                              # reserve the format areas first
+    i = 0
+    for right in range(size - 1, 0, -2):        # zig-zag data placement
+        if right <= 6:                          # skip the vertical timing column
+            right -= 1
+        for vert in range(size):
+            for j in range(2):
+                x = right - j
+                y = size - 1 - vert if ((right + 1) & 2) == 0 else vert
+                if not fn[y][x] and i < len(cw) * 8:
+                    mod[y][x] = ((cw[i >> 3] >> (7 - (i & 7))) & 1) != 0
+                    i += 1
+    masks = [lambda x, y: (x + y) % 2 == 0, lambda x, y: y % 2 == 0, lambda x, y: x % 3 == 0,
+             lambda x, y: (x + y) % 3 == 0, lambda x, y: (x // 3 + y // 2) % 2 == 0,
+             lambda x, y: x * y % 2 + x * y % 3 == 0, lambda x, y: (x * y % 2 + x * y % 3) % 2 == 0,
+             lambda x, y: ((x + y) % 2 + x * y % 3) % 2 == 0]
+
+    def penalty(m):
+        sc = 0
+        for grid in (m, [list(r) for r in zip(*m)]):
+            for row in grid:
+                run = 1
+                for k in range(1, size):
+                    if row[k] == row[k - 1]:
+                        run += 1
+                        if run == 5:
+                            sc += 3
+                        elif run > 5:
+                            sc += 1
+                    else:
+                        run = 1
+                line = "".join("1" if v else "0" for v in row)
+                sc += 40 * (line.count("10111010000") + line.count("00001011101"))
+        for y in range(size - 1):
+            for x in range(size - 1):
+                if m[y][x] == m[y][x + 1] == m[y + 1][x] == m[y + 1][x + 1]:
+                    sc += 3
+        dark = sum(v for r in m for v in r)
+        sc += 10 * (abs(dark * 20 - size * size * 10) // (size * size))
+        return sc
+    best = None
+    for k, f in enumerate(masks):
+        m = [row[:] for row in mod]
+        for y in range(size):
+            for x in range(size):
+                if not fn[y][x] and f(x, y):
+                    m[y][x] = not m[y][x]
+        mod_backup = mod
+        mod = m
+        format_bits(k)
+        m = mod
+        mod = mod_backup
+        sc = penalty(m)
+        if best is None or sc < best[0]:
+            best = (sc, m)
+    return best[1]
+
+
+def _bounce_handler():
+    import http.server
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            ip = self.request.getsockname()[0]               # the address the phone used to reach this laptop
+            q = "ip=%s&port=%d&n=%s" % (ip, self.server.udp_port, socket.gethostname().replace(" ", "-"))
+            page = ("<!doctype html><meta name=viewport content='width=device-width,initial-scale=1'>"
+                    "<title>CloudPad</title><body style='font:18px sans-serif;background:#0B0708;color:#F6EFEF;"
+                    "text-align:center;padding:40px 20px'><h2>Opening CloudPad...</h2>"
+                    "<p><a id=a style='display:inline-block;background:#E03A4B;color:#fff;padding:16px 28px;"
+                    "border-radius:12px;text-decoration:none;font-weight:bold' href='intent://connect?%s#Intent;"
+                    "scheme=cloudpad;package=com.cloudpad.controller;end'>Open CloudPad</a></p>"
+                    "<p style='color:#A8979A'>Nothing happened? Install CloudPad 1.7 or newer on this phone, then "
+                    "scan the code again.</p><script>setTimeout(function(){location.href=document.getElementById"
+                    "('a').href},400)</script>" % q).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(page)))
+            self.end_headers()
+            self.wfile.write(page)
+    return H
+
+
+def start_bounce(udp_port):
+    """Start the page the QR code points at. Returns (server, port)."""
+    import http.server
+    import threading
+    for port in (QR_HTTP_PORT, 0):
+        try:
+            srv = http.server.ThreadingHTTPServer(("0.0.0.0", port), _bounce_handler())
+            break
+        except OSError:
+            srv = None
+    if srv is None:
+        raise OSError("no free port for the QR page")
+    srv.daemon_threads = True
+    srv.udp_port = udp_port
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv, srv.server_address[1]
+
+
+def lan_addresses():
+    """Private IPv4 addresses of this laptop's Wi-Fi / hotspot networks, hotspot first."""
+    nets = find_wifi_nets()
+    nets.sort(key=lambda n: 0 if "direct" in (n["desc"] + n["alias"]).lower() else 1)
+    return [(n["ip"], n["alias"] or n["desc"]) for n in nets]
+
+
 def allow_in_firewall():
     """Ask Windows (with an admin prompt) to let Python receive the phones' replies."""
     import ctypes
@@ -303,6 +507,7 @@ class Engine:
         self.udp = None
         self.usb_peers = {}
         self.usb_nets = []
+        self.udp_port = 0
         self.wifi = False          # Wi-Fi phones are opt-in (it probes the local network)
         self.usb_first_seen = {}   # net ip -> when we first saw that network
         self.usb_replied = {}      # net ip -> last reply from a phone on it
@@ -412,9 +617,12 @@ class Engine:
             for n in self.usb_nets:
                 if n.get("wifi") and ip in ipaddress.IPv4Network(n["net"], strict=False):
                     return "wifi"
+            for n in self.usb_nets:             # a network we know to be a cable
+                if not n.get("wifi") and ip in ipaddress.IPv4Network(n["ip"] + "/24", strict=False):
+                    return "usb"
         except Exception:
             pass
-        return "usb"
+        return "wifi"                           # a phone that found us itself (QR) on some other network
 
     def detach(self, slot, why):
         if not slot.connected:
@@ -578,7 +786,11 @@ class Engine:
     async def usb_loop(self):
         loop = asyncio.get_running_loop()
         try:
-            tr, _ = await loop.create_datagram_endpoint(lambda: _Udp(self), local_addr=("0.0.0.0", 0))
+            try:
+                tr, _ = await loop.create_datagram_endpoint(lambda: _Udp(self), local_addr=("0.0.0.0", LINK_PORT))
+            except OSError:                       # port taken (second Bridge?): any free port still works, just not by QR
+                tr, _ = await loop.create_datagram_endpoint(lambda: _Udp(self), local_addr=("0.0.0.0", 0))
+            self.udp_port = tr.get_extra_info("sockname")[1]
             tr.get_extra_info("socket").setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         except Exception as e:
             self.log("USB cable mode unavailable: %s" % e)
@@ -869,7 +1081,7 @@ def run_gui():
     refresh_btn.pack(side="right", anchor="s")
     label(root, "Bluetooth: hold a phone next to the laptop until it shows up below, then sit back. "
                 "USB: plug the phone in and turn on USB tethering - it joins by itself. "
-                "Wi-Fi: turn it on in the Wi-Fi box below, then open CloudPad on a phone on the same network.",
+                "Wi-Fi: press Show QR in the Wi-Fi box and scan it with the phone's camera, or turn Wi-Fi on and open CloudPad.",
           SMALL, MUTED, wraplength=760, justify="left").pack(anchor="w", padx=22, pady=(8, 10))
 
     # player cards
@@ -937,7 +1149,64 @@ def run_gui():
 
     fw_btn = button(usb_box, "Allow in firewall", do_firewall, bg=RAISED, fg=TEXT, small=True)
     wifi_btn = button(wifi_box, "Turn on", toggle_wifi, bg=RAISED, fg=TEXT, small=True)
-    wifi_btn.pack(side="right", padx=12)
+    wifi_btn.pack(side="right", padx=(4, 12))
+
+    def show_qr():
+        import tkinter as tk2
+        if engine.udp is None or not engine.udp_port:
+            logq.put("The network link isn't ready yet - try again in a moment.")
+            return
+        ips = lan_addresses() if IS_WIN else [("127.0.0.1", "Test")]
+        if not ips:
+            logq.put("No Wi-Fi or hotspot network found. Connect this laptop to Wi-Fi or turn on Mobile Hotspot first.")
+            return
+        try:
+            srv, port = start_bounce(engine.udp_port)
+        except Exception as e:
+            logq.put("Couldn't start the QR page: %s" % e)
+            return
+        win = tk2.Toplevel(root)
+        win.title("Join with QR")
+        win.configure(bg=BG)
+        win.resizable(False, False)
+        idx = [0]
+        cv = tk2.Canvas(win, bg="#FFFFFF", highlightthickness=0)
+        cv.pack(padx=24, pady=(24, 10))
+        info = label(win, "", SMALL, TEXT, wraplength=330, justify="center")
+        info.pack(padx=24)
+
+        def draw():
+            ip, name = ips[idx[0]]
+            m = qr_matrix("http://%s:%d/" % (ip, port))
+            n, px, q = len(m), 8, 4
+            cv.config(width=(n + 2 * q) * px, height=(n + 2 * q) * px)
+            cv.delete("all")
+            for y, row in enumerate(m):
+                for x, v in enumerate(row):
+                    if v:
+                        cv.create_rectangle((x + q) * px, (y + q) * px, (x + q + 1) * px, (y + q + 1) * px,
+                                            fill="#000000", outline="")
+            info.config(text="Scan with the phone's camera and tap the link: CloudPad opens and joins.\n"
+                             "The phone must be on the same network as this laptop: %s (%s)." % (name, ip))
+        draw()
+        if len(ips) > 1:
+            def nxt():
+                idx[0] = (idx[0] + 1) % len(ips)
+                draw()
+            button(win, "Use another network (%d found)" % len(ips), nxt, bg=RAISED, fg=TEXT, small=True).pack(pady=8)
+
+        def close():
+            try:
+                srv.shutdown()
+                srv.server_close()
+            except Exception:
+                pass
+            win.destroy()
+        button(win, "Close", close, bg=ACCENT, fg=BG, small=True).pack(pady=(4, 20))
+        win.protocol("WM_DELETE_WINDOW", close)
+
+    qr_btn = button(wifi_box, "Show QR", show_qr, bg=ACCENT, fg=BG, small=True)
+    qr_btn.pack(side="right", padx=4)
     wifi_fw = button(wifi_box, "Allow in firewall", do_firewall, bg=RAISED, fg=TEXT, small=True)
     wifi_shown = {"text": None}
     usb_shown = {"text": None}

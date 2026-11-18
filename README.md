@@ -57,3 +57,6 @@ Crimson on black-red, app and Bridge; home cards stay multicolour.
 
 ### 1.6.0 — Wi-Fi option
 Phones can now join over Wi-Fi or the laptop's Mobile Hotspot (turn it on in the Bridge's Wi-Fi box; off by default). Use the laptop hotspot on hostel/college networks that block phone-to-laptop traffic. `bridge/test_wifi.py` simulates a phone to test the network path.
+
+### 1.7.0 — QR join
+In the Bridge's Wi-Fi box press **Show QR**, scan it with the phone camera and tap the link: CloudPad opens and joins that laptop directly (no network scanning). Needs the phone and laptop on the same network. The QR is made by a small built-in generator (`bridge/test_qr.py` checks it with an independent decoder).

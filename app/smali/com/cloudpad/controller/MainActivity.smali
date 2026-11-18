@@ -967,6 +967,12 @@
 
     invoke-static {p0, v0}, Lcom/cloudpad/controller/UsbLink;->start(Lcom/cloudpad/controller/MainActivity;Lcom/cloudpad/controller/GamepadView;)V
 
+    invoke-virtual {p0}, Lcom/cloudpad/controller/MainActivity;->getIntent()Landroid/content/Intent;
+
+    move-result-object v0
+
+    invoke-static {p0, v0}, Lcom/cloudpad/controller/QuickConnect;->handle(Landroid/app/Activity;Landroid/content/Intent;)V
+
     return-void
 .end method
 
@@ -1639,5 +1645,18 @@
     invoke-virtual {p1}, Lcom/cloudpad/controller/GamepadView;->releaseAll()V
 
     :goto_0
+    return-void
+.end method
+
+
+.method protected onNewIntent(Landroid/content/Intent;)V
+    .locals 0
+
+    invoke-super {p0, p1}, Landroid/app/Activity;->onNewIntent(Landroid/content/Intent;)V
+
+    invoke-virtual {p0, p1}, Lcom/cloudpad/controller/MainActivity;->setIntent(Landroid/content/Intent;)V
+
+    invoke-static {p0, p1}, Lcom/cloudpad/controller/QuickConnect;->handle(Landroid/app/Activity;Landroid/content/Intent;)V
+
     return-void
 .end method
