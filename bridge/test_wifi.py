@@ -35,13 +35,13 @@ async def run():
         def apply(s,st): s.got.append(st); return True
         def release_all(s): pass
     eng.ensure_pad=lambda slot: setattr(slot,"pad",slot.pad or P())
-    eng.wifi=True
+    eng.mode='wifi'; eng.loop=asyncio.get_running_loop()
     # fake phone
     ph=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); ph.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1); ph.bind(("127.0.0.1",m.USB_PORT)); ph.settimeout(0.2)
     rumble=[]
     def phone():
         t0=time.time()
-        while time.time()-t0<4:
+        while time.time()-t0<14:
             try: d,a=ph.recvfrom(100)
             except socket.timeout: continue
             if d[:4]==b"CPH1":
@@ -62,8 +62,19 @@ async def run():
     check("rumble sent back to the phone over the network", any(r[:1]==b"\x01" for r in rumble))
     await eng.write(s1,m.telemetry_packet(250,11500,5,1)); await asyncio.sleep(0.4)
     check("F1 telemetry packet reaches the phone", any(r[:1]==b"\x03" and len(r)==8 for r in rumble))
-    eng.wifi=False; eng.force_find=True; await asyncio.sleep(3.5)
-    check("turning Wi-Fi off stops probing it", not any(n.get("wifi") for n in eng.usb_nets))
+    check("mode wifi: only wifi allowed", eng.allow("wifi") and not eng.allow("usb") and not eng.allow("bluetooth"))
+    eng.set_mode("usb"); await asyncio.sleep(3.8)
+    check("switching to USB drops the Wi-Fi player", not s1.connected)
+    check("switching to USB stops probing Wi-Fi", not any(n.get("wifi") for n in eng.usb_nets))
+    check("Wi-Fi phone is ignored while in USB mode", not s1.connected and not any(s.connected for s in eng.slots))
+    eng.set_mode("bluetooth"); await asyncio.sleep(0.6)
+    check("Bluetooth mode sends no hellos", eng.usb_nets==[])
+    eng.set_mode("wifi"); await asyncio.sleep(3.0)
+    check("back to Wi-Fi: phone rejoins", any(s.connected and s.link=="wifi" for s in eng.slots))
+    eng.set_mode("auto")
+    check("auto = Bluetooth + USB only", eng.allow("bluetooth") and eng.allow("usb") and not eng.allow("wifi"))
+    check("auto's find_all_nets never returns wifi", all(not n.get("wifi") for n in m.find_all_nets("auto")))
+    check("bluetooth mode finds no networks", m.find_all_nets("bluetooth")==[])
     task.cancel(); th.join()
 asyncio.run(run())
 print("ALL OK" if ok else "FAILURES")

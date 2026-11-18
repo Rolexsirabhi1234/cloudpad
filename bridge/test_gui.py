@@ -16,8 +16,19 @@ def hook(self,n=0):
     def go():
         try:
             btns=[w for w in walk(self) if isinstance(w,tk.Button)]
+            def mode(t): [b for b in btns if b.cget("text")==t and b.master.master.master is self or True][0]
+            seg=[b for b in btns if b.cget("text") in ("Bluetooth","Wi-Fi","USB cable","Bluetooth + USB")]
+            res["mode_buttons"]=[b.cget("text") for b in seg]
+            def visible(txt): return any(w.winfo_ismapped() for w in walk(self) if isinstance(w,tk.Label) and w.cget("text")==txt)
+            res["auto_sections"]=(visible("Phones nearby"),visible("USB cable"),visible("Wi-Fi"))
+            [b for b in seg if b.cget("text")=="Wi-Fi"][0].invoke(); self.update()
+            res["wifi_sections"]=(visible("Phones nearby"),visible("USB cable"),visible("Wi-Fi"))
+            [b for b in seg if b.cget("text")=="USB cable"][0].invoke(); self.update()
+            res["usb_sections"]=(visible("Phones nearby"),visible("USB cable"),visible("Wi-Fi"))
+            [b for b in seg if b.cget("text")=="Bluetooth"][0].invoke(); self.update()
+            res["bt_sections"]=(visible("Phones nearby"),visible("USB cable"),visible("Wi-Fi"))
+            [b for b in seg if b.cget("text")=="Wi-Fi"][0].invoke(); self.update()
             qr=[b for b in btns if b.cget("text")=="Show QR"][0]
-            res["wifi_btn_text"]=[b.cget("text") for b in btns if b.cget("text") in ("Turn on","Turn off")]
             qr.invoke(); self.update()
             tops=[w for w in walk(self) if isinstance(w,tk.Toplevel)]
             res["toplevels"]=len(tops)
@@ -25,8 +36,6 @@ def hook(self,n=0):
             res["qr_rects"]=len(cv.find_all())
             res["info"]=[w.cget("text") for w in walk(tops[0]) if isinstance(w,tk.Label)]
             # toggle wifi button too
-            tw=[b for b in btns if b.cget("text")=="Turn on"][0]; tw.invoke(); self.update()
-            res["after_toggle"]=tw.cget("text"); res["engine_wifi"]=self.engine_ref.wifi if hasattr(self,"engine_ref") else None
             # close QR window
             [b for b in walk(tops[0]) if isinstance(b,tk.Button) and b.cget("text")=="Close"][0].invoke(); self.update()
             res["closed"]=len([w for w in walk(self) if isinstance(w,tk.Toplevel)])==0

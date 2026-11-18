@@ -5,8 +5,10 @@ Double-click to open. Up to 4 phones (local co-op), each one its own Xbox 360 co
   * Bluetooth: hold a phone next to the laptop to join (distance is adjustable).
   * USB cable: plug the phone in and turn on USB tethering - it joins by itself and is the
     most reliable option. A Bluetooth player who plugs in moves to the cable automatically.
-  * Wi-Fi: press Show QR in the Wi-Fi box and scan it with the phone's camera (no network probing),
-    or turn Wi-Fi on so the Bridge finds phones itself. Best network: this laptop's Mobile Hotspot.
+  * Wi-Fi: press Show QR in the Wi-Fi box and scan it with the phone's camera. Best network: this
+    laptop's Mobile Hotspot.
+  Pick ONE way to connect in the "Connect with" row (Bluetooth, Wi-Fi, USB cable, or Bluetooth + USB):
+  the others are switched off, so they can never fight over the same phone.
 
 Needs:  python -m pip install bleak vgamepad   (the window has an Install button)
 """
@@ -33,6 +35,28 @@ USB_PORT = 47123
 LINK_PORT = 47124      # the Bridge's own UDP port, so a phone can say hello first (QR join)
 QR_HTTP_PORT = 47125   # tiny page the QR code points at
 MAX_PLAYERS = 4
+MODES = [("bluetooth", "Bluetooth"), ("wifi", "Wi-Fi"), ("usb", "USB cable"), ("auto", "Bluetooth + USB")]
+WIFI_GRACE = 12.0      # a Wi-Fi / hotspot link may go quiet this long before the player is dropped
+USB_GRACE = 4.0
+CONFIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cloudpad_bridge.json")
+
+
+def load_config():
+    try:
+        with open(CONFIG, encoding="utf-8") as fh:
+            return json.load(fh)
+    except Exception:
+        return {}
+
+
+def save_config(**kw):
+    cfg = load_config()
+    cfg.update(kw)
+    try:
+        with open(CONFIG, "w", encoding="utf-8") as fh:
+            json.dump(cfg, fh)
+    except Exception:
+        pass
 DISTANCES = [("Next to laptop", -60), ("Same desk", -72), ("Anywhere", -110)]
 
 A, B, X, Y, LB, RB, LT, RT, VIEW, MENU, L3, R3, UP, DOWN, LEFT, RIGHT, GUIDE = range(17)
@@ -236,10 +260,19 @@ def find_wifi_nets(data=None):
     return nets
 
 
-def find_all_nets(wifi):
+def find_all_nets(mode):
+    """Networks to look for phones on, for the chosen mode. Only the chosen kind is looked at."""
+    if mode is True:
+        mode = "all"
+    elif mode is False:
+        mode = "auto"
+    if mode == "bluetooth":
+        return []
     data = _net_configs()
-    nets = find_usb_nets(data)
-    if wifi:
+    nets = []
+    if mode in ("auto", "usb", "all"):
+        nets += find_usb_nets(data)
+    if mode in ("wifi", "all"):
         nets += find_wifi_nets(data)
     return nets
 
@@ -488,6 +521,7 @@ class Slot:
         self.rumble_sent = 0.0
         self.left_at = 0.0
         self.left_via = None
+        self.last_heard = 0.0      # network players: when the phone last answered
 
 
 class Engine:
@@ -508,7 +542,7 @@ class Engine:
         self.usb_peers = {}
         self.usb_nets = []
         self.udp_port = 0
-        self.wifi = False          # Wi-Fi phones are opt-in (it probes the local network)
+        self.mode = "auto"         # how phones may connect: bluetooth / wifi / usb / auto (= Bluetooth + USB)
         self.usb_first_seen = {}   # net ip -> when we first saw that network
         self.usb_replied = {}      # net ip -> last reply from a phone on it
         self.usb_known = {}        # phone ip -> last reply: these get a hello on every tick
@@ -569,6 +603,42 @@ class Engine:
         if self.ble_ok:
             jobs.append(self.ble_loop())
         await asyncio.gather(*jobs)
+
+    # -- connection mode: only the chosen link type is active, so they can't fight over a phone
+    @property
+    def wifi(self):
+        return self.mode == "wifi"
+
+    def allow(self, kind):
+        """May a phone connect by this kind of link ('bluetooth', 'wifi' or 'usb') in the current mode?"""
+        if self.mode == "auto":
+            return kind in ("bluetooth", "usb")
+        return kind == self.mode
+
+    def slot_kind(self, s):
+        return "bluetooth" if s.transport == "bluetooth" else ("wifi" if s.link == "wifi" else "usb")
+
+    def set_mode(self, mode):
+        if mode == self.mode or mode not in [m[0] for m in MODES]:
+            return
+        self.mode = mode
+        if self.loop is None:
+            return
+
+        def apply():
+            for s in self.slots:                     # drop players on a link type that is now off
+                if s.connected and not self.allow(self.slot_kind(s)):
+                    self.detach(s, "was disconnected because you switched how phones connect")
+            self.usb_peers.clear()
+            self.usb_known.clear()
+            self.usb_nets = []
+            self.usb_replied.clear()
+            self.usb_first_seen.clear()
+            self.nearby.clear()
+            self.force_find = True
+            if self.wake is not None:
+                self.wake.set()
+        self.loop.call_soon_threadsafe(apply)
 
     # -- players
     def connected_count(self):
@@ -669,6 +739,10 @@ class Engine:
         from bleak import BleakScanner
         self.wake = asyncio.Event()
         while True:
+            if not self.allow("bluetooth"):
+                self.scanning = False
+                await asyncio.sleep(0.5)
+                continue
             if self.connected_count() >= self.target or self.busy:
                 self.scanning = False
                 now = time.time()
@@ -686,6 +760,8 @@ class Engine:
                 continue
             self.scanning = False
             now, best = time.time(), None
+            if not self.allow("bluetooth"):       # the mode changed during the scan
+                continue
             for dev, adv in found.values():
                 if SERVICE_UUID not in [u.lower() for u in (adv.service_uuids or [])]:
                     continue
@@ -742,7 +818,7 @@ class Engine:
                 self.attach(slot, key, "bluetooth", client=client)
                 await asyncio.sleep(3.0)          # let the new link settle before scanning again
                 self.busy = False
-                while not gone.is_set() and slot.connected and slot.transport == "bluetooth":
+                while not gone.is_set() and slot.connected and slot.transport == "bluetooth" and self.allow("bluetooth"):
                     try:
                         await asyncio.wait_for(gone.wait(), 0.5)
                     except asyncio.TimeoutError:
@@ -753,6 +829,7 @@ class Engine:
             self.busy = False
             if slot.connected and slot.transport == "bluetooth":
                 self.detach(slot, "disconnected")
+            self.nearby.pop(key, None)
 
     # -- F1 2020 telemetry -> phone gauges
     async def f1_loop(self):
@@ -804,7 +881,7 @@ class Engine:
             if now - last_find > find_every or self.force_find:
                 self.force_find = False
                 last_find = now
-                self.usb_nets = await loop.run_in_executor(None, find_all_nets, self.wifi)
+                self.usb_nets = await loop.run_in_executor(None, find_all_nets, self.mode)
                 ips = {n["ip"] for n in self.usb_nets}
                 for ip in ips:
                     self.usb_first_seen.setdefault(ip, now)
@@ -814,7 +891,8 @@ class Engine:
             send_to = set()
             for n in self.usb_nets:
                 if n.get("wifi") and self.wifi_has_phone(n, now):
-                    send_to.update(n["targets"][:2])       # a phone is on this network: stop sweeping it
+                    if sweep:                              # a phone is on this network: no more sweeping, and only
+                        send_to.update(n["targets"][:2])   # an occasional broadcast so a second phone can still join
                 else:
                     send_to.update(n["targets"] if sweep else n["targets"][:2])
             for ip, t in list(self.usb_known.items()):  # phones that answered: every tick, directly
@@ -828,9 +906,10 @@ class Engine:
                 except Exception:
                     pass
             for addr, peer in list(self.usb_peers.items()):
-                if now - peer["seen"] > 4.0:
+                s = peer["slot"]
+                grace = WIFI_GRACE if (s is not None and s.link == "wifi") or self.link_for(addr) == "wifi" else USB_GRACE
+                if now - peer["seen"] > grace:
                     del self.usb_peers[addr]
-                    s = peer["slot"]
                     if s and s.connected and s.transport == "usb" and s.addr == addr:
                         self.detach(s, "was unplugged" if s.link == "usb" else "lost the Wi-Fi link")
             await asyncio.sleep(0.25)
@@ -868,7 +947,7 @@ class Engine:
         if self.udp is None:
             return "off", "Network mode isn't available on this laptop."
         if not self.wifi:
-            return "off", "Wi-Fi is off. Turn it on to let phones join over Wi-Fi or this laptop's Mobile Hotspot."
+            return "off", "Wi-Fi is not the chosen way to connect."
         now = time.time()
         nets = [n for n in self.usb_nets if n.get("wifi")]
         live = sum(1 for s in self.slots if s.connected and s.link == "wifi")
@@ -896,6 +975,8 @@ class Engine:
 
     def on_udp(self, data, addr):
         now = time.time()
+        if not self.allow(self.link_for(addr)):    # this kind of link is switched off in the chosen mode
+            return
         self.usb_known[addr[0]] = now
         try:
             for n in self.usb_nets:          # remember which USB network this reply came from
@@ -905,6 +986,8 @@ class Engine:
             pass
         peer = self.usb_peers.setdefault(addr, {"seen": now, "slot": None, "name": None})
         peer["seen"] = now
+        if peer["slot"] is not None:
+            peer["slot"].last_heard = now
         if data[:4] == b"CPN1":
             name = data[4:].decode("utf-8", "replace").strip() or addr[0]
             peer["name"] = name
@@ -959,7 +1042,10 @@ def run_gui():
     SMALL = ("Segoe UI", 9)
 
     logq = queue.Queue()
+    cfg = load_config()
+    start_mode = cfg.get("mode") if cfg.get("mode") in [m[0] for m in MODES] else "auto"
     engine = Engine(logq.put)
+    engine.mode = start_mode
     engine.start()
 
     root = tk.Tk()
@@ -1027,9 +1113,11 @@ def run_gui():
     install_btn.pack(side="right", padx=14)
 
     # controls
+    mode_row = tk.Frame(root, bg=BG)
+    mode_row.pack(fill="x", padx=22, pady=(12, 0))
     ctl = tk.Frame(root, bg=BG)
-    ctl.pack(fill="x", padx=22, pady=(12, 4))
-    seg_state = {"players": 2, "dist": 0}
+    ctl.pack(fill="x", padx=22, pady=(10, 4))
+    seg_state = {"players": 2, "dist": 0, "mode": [m[0] for m in MODES].index(start_mode)}
 
     def segmented(parent, title, options, key, on_pick):
         f = tk.Frame(parent, bg=BG)
@@ -1060,7 +1148,7 @@ def run_gui():
 
     pf, pick_players = segmented(ctl, "Players", ["1", "2", "3", "4"], "players", set_players)
     pf.pack(side="left")
-    df, pick_dist = segmented(ctl, "Join from", [d[0] for d in DISTANCES], "dist", set_dist)
+    df, pick_dist = segmented(ctl, "Bluetooth: join from", [d[0] for d in DISTANCES], "dist", set_dist)
     df.pack(side="left", padx=(36, 0))
     pick_players(1)
     pick_dist(0)
@@ -1069,20 +1157,31 @@ def run_gui():
         nonlocal engine
         if engine.problem in ("vgamepad", "driver", "error"):
             engine = Engine(logq.put)               # check the setup again without reopening
+            engine.mode = MODES[seg_state["mode"]][0]
             engine.target = seg_state["players"] + 1
             engine.rssi_min = DISTANCES[seg_state["dist"]][1]
             engine.start()
             logq.put("Checking the setup again...")
         else:
             engine.refresh()
-            logq.put("Looking for phones again (Bluetooth, USB and Wi-Fi)...")
+            logq.put("Looking for phones again (%s)..." % MODES[seg_state["mode"]][1])
 
     refresh_btn = button(ctl, "Refresh", do_refresh, bg=RAISED, fg=TEXT)
     refresh_btn.pack(side="right", anchor="s")
-    label(root, "Bluetooth: hold a phone next to the laptop until it shows up below, then sit back. "
-                "USB: plug the phone in and turn on USB tethering - it joins by itself. "
-                "Wi-Fi: press Show QR in the Wi-Fi box and scan it with the phone's camera, or turn Wi-Fi on and open CloudPad.",
-          SMALL, MUTED, wraplength=760, justify="left").pack(anchor="w", padx=22, pady=(8, 10))
+    mode_hint = label(root, "", SMALL, MUTED, wraplength=760, justify="left")
+    mode_hint.pack(anchor="w", padx=22, pady=(8, 10))
+    HINTS = {"bluetooth": "Bluetooth only. Hold a phone next to the laptop until it shows up below, then sit back. "
+                          "Wi-Fi and USB are switched off.",
+             "wifi": "Wi-Fi only. Put the phone on the same network as this laptop (best: this laptop's Mobile Hotspot), "
+                     "then press Show QR below and scan it with the phone's camera. Bluetooth and USB are switched off.",
+             "usb": "USB cable only. Plug the phone in and turn on USB tethering - it joins by itself and is the most "
+                    "stable way. Bluetooth and Wi-Fi are switched off.",
+             "auto": "Bluetooth + USB. Hold a phone next to the laptop, or plug it in with USB tethering on. A Bluetooth "
+                     "player who plugs in moves to the cable. Wi-Fi is switched off."}
+    WAIT = {"bluetooth": "Hold a phone next to the laptop",
+            "wifi": "Scan the QR code from the Wi-Fi box",
+            "usb": "Plug a phone in and turn on USB tethering",
+            "auto": "Hold a phone next to the laptop, or plug one in"}
 
     # player cards
     grid = tk.Frame(root, bg=BG)
@@ -1113,32 +1212,32 @@ def run_gui():
                       "state": state, "color": COLORS[n]})
 
     # nearby phones
-    label(root, "Phones nearby", HEAD).pack(anchor="w", padx=22, pady=(14, 4))
-    near_box = tk.Frame(root, bg=SURFACE)
+    area = tk.Frame(root, bg=BG)             # holds only the section(s) for the chosen way to connect
+    area.pack(fill="x")
+    sec_bt = tk.Frame(area, bg=BG)
+    sec_usb = tk.Frame(area, bg=BG)
+    sec_wifi = tk.Frame(area, bg=BG)
+
+    label(sec_bt, "Phones nearby", HEAD).pack(anchor="w", padx=22, pady=(14, 4))
+    near_box = tk.Frame(sec_bt, bg=SURFACE)
     near_box.pack(fill="x", padx=22)
     near_rows = [None]          # forces the first draw, so the empty-state hint shows
 
-    label(root, "USB cable", HEAD).pack(anchor="w", padx=22, pady=(14, 4))
-    usb_box = tk.Frame(root, bg=SURFACE)
+    label(sec_usb, "USB cable", HEAD).pack(anchor="w", padx=22, pady=(14, 4))
+    usb_box = tk.Frame(sec_usb, bg=SURFACE)
     usb_box.pack(fill="x", padx=22)
     usb_dot = tk.Canvas(usb_box, width=14, height=14, bg=SURFACE, highlightthickness=0)
     usb_dot.pack(side="left", padx=(12, 0), pady=12, anchor="n")
     usb_text = label(usb_box, "", SMALL, TEXT, wraplength=560, justify="left")
     usb_text.pack(side="left", padx=10, pady=10, anchor="w")
 
-    label(root, "Wi-Fi", HEAD).pack(anchor="w", padx=22, pady=(14, 4))
-    wifi_box = tk.Frame(root, bg=SURFACE)
+    label(sec_wifi, "Wi-Fi", HEAD).pack(anchor="w", padx=22, pady=(14, 4))
+    wifi_box = tk.Frame(sec_wifi, bg=SURFACE)
     wifi_box.pack(fill="x", padx=22)
     wifi_dot = tk.Canvas(wifi_box, width=14, height=14, bg=SURFACE, highlightthickness=0)
     wifi_dot.pack(side="left", padx=(12, 0), pady=12, anchor="n")
     wifi_text = label(wifi_box, "", SMALL, TEXT, wraplength=520, justify="left")
     wifi_text.pack(side="left", padx=10, pady=10, anchor="w")
-
-    def toggle_wifi():
-        engine.wifi = not engine.wifi
-        engine.force_find = True
-        wifi_btn.config(text="Turn off" if engine.wifi else "Turn on")
-        logq.put("Wi-Fi phones are %s." % ("on: phones on the same network can join" if engine.wifi else "off"))
 
     def do_firewall():
         try:
@@ -1148,8 +1247,6 @@ def run_gui():
             logq.put("Couldn't change the firewall: %s" % e)
 
     fw_btn = button(usb_box, "Allow in firewall", do_firewall, bg=RAISED, fg=TEXT, small=True)
-    wifi_btn = button(wifi_box, "Turn on", toggle_wifi, bg=RAISED, fg=TEXT, small=True)
-    wifi_btn.pack(side="right", padx=(4, 12))
 
     def show_qr():
         import tkinter as tk2
@@ -1210,6 +1307,32 @@ def run_gui():
     wifi_fw = button(wifi_box, "Allow in firewall", do_firewall, bg=RAISED, fg=TEXT, small=True)
     wifi_shown = {"text": None}
     usb_shown = {"text": None}
+
+    def show_sections():
+        for f in (sec_bt, sec_usb, sec_wifi):
+            f.pack_forget()
+        m = engine.mode
+        if m in ("bluetooth", "auto"):
+            sec_bt.pack(fill="x")
+        if m in ("usb", "auto"):
+            sec_usb.pack(fill="x")
+        if m == "wifi":
+            sec_wifi.pack(fill="x")
+        df.pack_forget()
+        if m in ("bluetooth", "auto"):
+            df.pack(side="left", padx=(36, 0))
+        mode_hint.config(text=HINTS[m])
+
+    def set_mode(i):
+        engine.set_mode(MODES[i][0])
+        save_config(mode=MODES[i][0])
+        usb_shown["text"] = wifi_shown["text"] = None
+        near_rows[:] = [None]
+        show_sections()
+
+    mf, pick_mode = segmented(mode_row, "Connect with", [m[1] for m in MODES], "mode", set_mode)
+    mf.pack(side="left")
+    pick_mode(seg_state["mode"])
 
     def bars(rssi):
         if rssi is None:
@@ -1276,7 +1399,10 @@ def run_gui():
                 c["name"].config(text=s.key, fg=TEXT)
                 c["chip"].config(text={"usb": " USB cable ", "wifi": " Wi-Fi "}.get(s.link, " Bluetooth ") if s.transport == "usb" else " Bluetooth ",
                                  bg=RAISED, fg=c["color"])
-                c["state"].config(text="Connected - press a button to see this light up")
+                if s.link == "wifi" and s.transport == "usb" and now - s.last_heard > 1.5:
+                    c["state"].config(text="Wi-Fi is patchy right now - keep the phone near the laptop or hotspot")
+                else:
+                    c["state"].config(text="Connected - press a button to see this light up")
                 lit = now - s.last_input < 0.25
                 c["dot"].delete("all")
                 c["dot"].create_oval(2, 2, 14, 14, fill=c["color"] if lit else RAISED, outline=c["color"])
@@ -1289,7 +1415,7 @@ def run_gui():
                 if in_use:
                     c["name"].config(text="Waiting for a phone" if not s.key else "Waiting for %s" % s.key,
                                      fg=MUTED)
-                    c["state"].config(text="Hold a phone next to the laptop, or plug one in")
+                    c["state"].config(text=WAIT[engine.mode])
                 else:
                     c["name"].config(text="Not playing", fg=LINE)
                     c["state"].config(text="Pick more players above to use this slot")

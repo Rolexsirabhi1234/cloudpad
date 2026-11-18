@@ -37,6 +37,7 @@ async def run():
         def apply(s,st): s.got.append(st); return True
         def release_all(s): pass
     eng.ensure_pad=lambda slot: setattr(slot,"pad",slot.pad or P())
+    eng.mode="wifi"
     task=asyncio.create_task(eng.usb_loop()); await asyncio.sleep(0.6)
     check("Bridge listens on the fixed port", eng.udp_port==m.LINK_PORT)
     ph=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); ph.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1); ph.bind(("127.0.0.1",m.USB_PORT)); ph.settimeout(0.2)

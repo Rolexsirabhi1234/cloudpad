@@ -60,3 +60,8 @@ Phones can now join over Wi-Fi or the laptop's Mobile Hotspot (turn it on in the
 
 ### 1.7.0 — QR join
 In the Bridge's Wi-Fi box press **Show QR**, scan it with the phone camera and tap the link: CloudPad opens and joins that laptop directly (no network scanning). Needs the phone and laptop on the same network. The QR is made by a small built-in generator (`bridge/test_qr.py` checks it with an independent decoder).
+
+### 1.8.0 — choose how to connect
+The Bridge has a **Connect with** row: Bluetooth, Wi-Fi, USB cable, or Bluetooth + USB. Only the chosen link is active (the others are switched off and ignored), so they can't fight over the same phone; the choice is remembered. Wi-Fi/hotspot is steadier: the Bridge waits 12 s (was 4 s) before dropping a quiet Wi-Fi player, the phone waits 8 s (was 3 s) for the laptop's next hello, and the Bridge stops sweeping the network once a phone is found. Player cards say when the Wi-Fi link is patchy. Tests: `bridge/test_wifi.py`, `test_qr.py`, `test_gui.py`.
+
+Hotspot tips: use the laptop's own Mobile Hotspot on 5 GHz, switch off the hotspot's auto-off timer, turn off power saving for the laptop's Wi-Fi adapter, and keep CloudPad on screen on the phone.

@@ -465,7 +465,7 @@
 
     sub-long/2addr v0, v2
 
-    const-wide/16 v2, 0xbb8
+    const-wide/16 v2, 0x1f40
 
     cmp-long v0, v0, v2
 
